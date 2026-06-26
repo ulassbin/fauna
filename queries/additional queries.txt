@@ -1,0 +1,3639 @@
+CLIP_RULES = {
+
+    # ==================================================================
+    # A) ACTION VERIFICATION / REFINEMENT  (crop = actor bbox)
+    # ==================================================================
+    "verify_drinking": {
+        "gate_actions": ["Drinking"],
+        "region": "actor",
+        "prompts": ["an animal drinking water", "an animal eating food",
+                    "an animal doing nothing near a bowl"],
+        "fire_if": "an animal drinking water",
+        "use": "Confirm a real drinking event before logging hydration.",
+    },
+    "verify_eating": {
+        "gate_actions": ["Eating", "Pecking", "Biting"],
+        "region": "actor",
+        "prompts": ["an animal eating food", "an animal sniffing food but not eating",
+                    "an animal away from food"],
+        "fire_if": "an animal eating food",
+        "use": "Confirm a real feeding event before logging a meal.",
+    },
+    "refine_movement_gait": {
+        "gate_actions": ["Running", "Walking", "Moving"],
+        "region": "actor",
+        "prompts": ["an animal walking normally", "an animal limping",
+                    "an animal running", "an animal pacing back and forth"],
+        "fire_if": "an animal limping",
+        "use": "Lameness / distress cue — high-value welfare + livestock flag.",
+    },
+    "eating_source": {
+        "gate_actions": ["Eating", "Pecking", "Biting"],
+        "region": "actor",
+        "prompts": ["an animal eating from a bowl", "an animal eating from the ground",
+                    "an animal eating from a trough", "an animal not eating"],
+        "fire_if": None,
+        "use": "Enriches feeding events (bowl vs trough vs ground).",
+    },
+    "species_life_stage": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": [
+            "a juvenile animal", "an adult animal", "an aged senior animal"
+        ],
+        "fire_if": None,
+        "use": "Generic life-stage refinement where species-specific terms are not reliable.",
+    },
+
+    # ==================================================================
+    # B) HEALTH / WELFARE ATTRIBUTES  (crop = actor bbox)
+    # ==================================================================
+    "looks_distressed": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a calm relaxed animal", "a distressed agitated animal",
+                    "an aggressive animal"],
+        "fire_if": "a distressed agitated animal",
+        "use": "General stress flag; pairs with Panting/Startled/Struggling.",
+    },
+    "is_wet": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a dry animal", "a wet animal"],
+        "fire_if": "a wet animal",
+        "use": "Pet caught in rain / fell in water; outdoor welfare.",
+    },
+    "is_shivering_cold": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a comfortable animal", "a cold shivering animal",
+                    "an animal curled up tightly for warmth"],
+        "fire_if": ["a cold shivering animal", "an animal curled up tightly for warmth"],
+        "use": "Cold-stress cue; pairs with snow/low temperature.",
+    },
+    "is_overheating": {
+        "gate_actions": ["Panting", "Resting", "Lying down"],
+        "region": "actor",
+        "prompts": ["a comfortable animal", "an animal panting heavily from heat",
+                    "an animal lying flat in the heat"],
+        "fire_if": ["an animal panting heavily from heat", "an animal lying flat in the heat"],
+        "use": "Heat-stress cue; pairs with hot/sunny scene for livestock.",
+    },
+    "body_condition": {
+        "gate_actions": ["Standing", "Walking", "Resting"],
+        "region": "actor",
+        "prompts": ["a healthy weight animal", "a very thin underweight animal"],
+        "fire_if": "a very thin underweight animal",
+        "use": "Coarse body-condition cue for livestock health.",
+    },
+    "gait_abnormality": {
+        "gate_actions": ["Walking", "Running", "Standing"],
+        "region": "actor",
+        "prompts": ["a normal gait animal", "an animal with stiff gait", "an animal limping"],
+        "fire_if": ["an animal with stiff gait", "an animal limping"],
+        "use": "High-value welfare indicator for pain, hoof issues, or injury.",
+    },
+    "posture_abnormality": {
+        "gate_actions": ["Standing", "Lying down", "Sitting", "Resting"],
+        "region": "actor",
+        "prompts": ["a normal posture animal", "an abnormal hunched posture animal",
+                    "an animal straining to stand"],
+        "fire_if": ["an abnormal hunched posture animal", "an animal straining to stand"],
+        "use": "Useful for pain, discomfort, illness, or exhaustion.",
+    },
+
+    # ==================================================================
+    # C) INTRUDER / IDENTITY  (crop = actor bbox, gate on low YOLO conf)
+    # ==================================================================
+    "predator_screen": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "gate_low_category_conf": True,
+        "prompts": ["a wolf", "a fox", "a stray dog",
+                    "a sheep", "a cow", "a horse", "a domestic cat"],
+        "fire_if": ["a wolf", "a fox", "a stray dog"],
+        "use": "Open-vocab intruder check around the herd / yard.",
+    },
+    "rodent_pest_screen": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "gate_low_category_conf": True,
+        "prompts": ["a rat or mouse", "a domestic cat", "a domestic dog",
+                    "nothing unusual"],
+        "fire_if": "a rat or mouse",
+        "use": "Pest detection indoors or in storage / barn.",
+    },
+    "unknown_canid_screen": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "gate_low_category_conf": True,
+        "prompts": ["a domestic dog", "a fox", "a wolf", "an unknown canid"],
+        "fire_if": ["a fox", "a wolf", "an unknown canid"],
+        "use": "Useful for farm perimeter intrusion and stray detection.",
+    },
+
+    # ==================================================================
+    # D) ENVIRONMENTAL HAZARDS  (crop = whole frame, time-based)
+    # ==================================================================
+    "heavy_rain": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["clear dry weather", "heavy rain", "a flooded wet ground"],
+        "fire_if": ["heavy rain", "a flooded wet ground"],
+        "use": "Shelter the animals; outdoor welfare alert.",
+    },
+    "snowing": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["clear weather", "snow falling", "ground covered in snow"],
+        "fire_if": ["snow falling", "ground covered in snow"],
+        "use": "Cold-weather welfare; pairs with shivering cue.",
+    },
+    "fire_smoke": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a normal safe scene", "fire and flames", "thick smoke"],
+        "fire_if": ["fire and flames", "thick smoke"],
+        "use": "Critical safety alarm — fire near animals.",
+    },
+    "extreme_heat_sun": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["mild cloudy weather", "harsh bright sunshine and heat"],
+        "fire_if": "harsh bright sunshine and heat",
+        "use": "Heat-stress context; combine with panting animals.",
+    },
+    "is_night": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a daytime scene", "a nighttime scene"],
+        "fire_if": None,
+        "use": "Context tag; abnormal night activity is a useful signal.",
+    },
+    "muddy_or_flooded_ground": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["dry ground", "muddy ground", "flooded ground"],
+        "fire_if": ["muddy ground", "flooded ground"],
+        "use": "Adds farm-relevant mobility and hygiene context.",
+    },
+
+    # ==================================================================
+    # E) FARM ENVIRONMENT  (crop = whole frame, time-based)
+    # ==================================================================
+    "gate_open": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a closed gate", "an open gate"],
+        "fire_if": "an open gate",
+        "use": "Livestock containment — escape risk.",
+    },
+    "empty_trough": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a water trough full of water", "an empty dry water trough"],
+        "fire_if": "an empty dry water trough",
+        "use": "Resource check — animals without water.",
+    },
+    "empty_feeder": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a feeder full of food", "an empty feeder"],
+        "fire_if": "an empty feeder",
+        "use": "Resource check — animals without feed.",
+    },
+    "barn_door_open": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a closed barn door", "an open barn door"],
+        "fire_if": "an open barn door",
+        "use": "Livestock security and escape risk.",
+    },
+    "fence_breach": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["an intact fence", "a broken fence", "a fence gap"],
+        "fire_if": ["a broken fence", "a fence gap"],
+        "use": "Important perimeter integrity alert.",
+    },
+
+    # ==================================================================
+    # F) HOUSEHOLD ENVIRONMENT  (crop = whole frame, time-based)
+    # ==================================================================
+    "wet_floor": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a dry clean floor", "a wet floor with a spill",
+                    "a floor with a puddle"],
+        "fire_if": ["a wet floor with a spill", "a floor with a puddle"],
+        "use": "Pet safety — spill or leak indoors.",
+    },
+    "mess_or_accident": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a clean floor", "pet urine or feces on the floor",
+                    "knocked over trash or mess"],
+        "fire_if": ["pet urine or feces on the floor", "knocked over trash or mess"],
+        "use": "Housetraining / cleanup alert for pet owners.",
+    },
+    "near_stove_or_hazard": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a safe room", "a pet near a hot stove",
+                    "a pet near an open flame or candle"],
+        "fire_if": ["a pet near a hot stove", "a pet near an open flame or candle"],
+        "use": "Kitchen / fire hazard for curious pets.",
+    },
+    "door_window_open": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a closed door and window", "an open door or window"],
+        "fire_if": "an open door or window",
+        "use": "Escape risk for indoor pets.",
+    },
+    "chewing_hazard": {
+        "gate_actions": ["Biting", "Manipulating object", "Playing"],
+        "region": "actor",
+        "prompts": ["a pet playing with a safe toy",
+                    "a pet chewing an electrical cord",
+                    "a pet chewing a shoe or furniture"],
+        "fire_if": ["a pet chewing an electrical cord", "a pet chewing a shoe or furniture"],
+        "use": "Destructive / dangerous chewing — cord = safety, shoe = behavior.",
+    },
+
+    # ==================================================================
+    # G) SPECIES / LIFE STAGE REFINEMENT
+    # ==================================================================
+    "dog_life_stage": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a puppy", "an adult dog", "a senior dog"],
+        "fire_if": None,
+        "use": "Dog life-stage refinement.",
+    },
+    "cat_life_stage": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a kitten", "an adult cat", "a senior cat"],
+        "fire_if": None,
+        "use": "Cat life-stage refinement.",
+    },
+    "cattle_life_stage_sex": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a calf", "a heifer", "a cow", "a bull", "a steer"],
+        "fire_if": None,
+        "use": "Correct cattle differentiation.",
+    },
+    "sheep_life_stage_sex": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a lamb", "an ewe", "a ram", "a wether"],
+        "fire_if": None,
+        "use": "Correct sheep differentiation.",
+    },
+    "goat_life_stage_sex": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a kid", "a doe goat", "a buck goat", "a wether goat"],
+        "fire_if": None,
+        "use": "Correct goat differentiation.",
+    },
+    "pig_life_stage_sex": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a piglet", "a gilt", "a sow", "a boar", "a barrow"],
+        "fire_if": None,
+        "use": "Correct pig differentiation.",
+    },
+    "chicken_life_stage_sex": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a chick", "a pullet", "a hen", "a cockerel", "a rooster"],
+        "fire_if": None,
+        "use": "Correct chicken differentiation.",
+    },
+    "duck_life_stage_sex": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a duckling", "a duck", "a drake"],
+        "fire_if": None,
+        "use": "Correct duck differentiation.",
+    },
+    "goose_life_stage_sex": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a gosling", "a goose", "a gander"],
+        "fire_if": None,
+        "use": "Correct goose differentiation.",
+    },
+    "turkey_life_stage_sex": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a poult", "a hen turkey", "a tom turkey"],
+        "fire_if": None,
+        "use": "Correct turkey differentiation.",
+    },
+    "horse_life_stage_sex": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a foal", "a filly", "a colt", "a mare", "a stallion", "a gelding", "a pony"],
+        "fire_if": None,
+        "use": "Correct equine differentiation where visually reliable.",
+    },
+    "rabbit_life_stage_sex": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a kit rabbit", "a doe rabbit", "a buck rabbit"],
+        "fire_if": None,
+        "use": "Rabbit differentiation.",
+    },
+}
+
+CLIP_RULES = {
+
+    # ==================================================================
+    # A) ACTION VERIFICATION / REFINEMENT  (crop = actor bbox)
+    # ==================================================================
+    "verify_drinking": {
+        "gate_actions": ["Drinking"],
+        "region": "actor",
+        "prompts": ["an animal drinking water", "an animal eating food",
+                    "an animal doing nothing near a bowl"],
+        "fire_if": "an animal drinking water",
+        "use": "Confirm a real drinking event before logging hydration.",
+    },
+    "verify_eating": {
+        "gate_actions": ["Eating", "Pecking", "Biting"],
+        "region": "actor",
+        "prompts": ["an animal eating food", "an animal sniffing food but not eating",
+                    "an animal away from food"],
+        "fire_if": "an animal eating food",
+        "use": "Confirm a real feeding event before logging a meal.",
+    },
+    "refine_movement_gait": {
+        "gate_actions": ["Running", "Walking", "Moving"],
+        "region": "actor",
+        "prompts": ["an animal walking normally", "an animal limping",
+                    "an animal running", "an animal pacing back and forth"],
+        "fire_if": "an animal limping",
+        "use": "Lameness / distress cue — high-value welfare + livestock flag.",
+    },
+    "eating_source": {
+        "gate_actions": ["Eating", "Pecking", "Biting"],
+        "region": "actor",
+        "prompts": ["an animal eating from a bowl", "an animal eating from the ground",
+                    "an animal eating from a trough", "an animal not eating"],
+        "fire_if": None,
+        "use": "Enriches feeding events (bowl vs trough vs ground).",
+    },
+
+    # CSV line 0: Movement, Abseiling
+    "movement_abseiling": {
+        "gate_actions": ["Abseiling"],
+        "region": "actor",
+        "prompts": ["an animal descending a vertical surface on a rope or structure",
+                    "an animal climbing up", "an animal standing on flat ground"],
+        "fire_if": "an animal descending a vertical surface on a rope or structure",
+        "use": "Refines vertical movement; mostly for specialized enclosures.",
+    },
+
+    # CSV line 1: Aggressive, Attacking
+    "aggressive_attacking": {
+        "gate_actions": ["Attacking", "Chasing", "Fighting", "Preying"],
+        "region": "actor",
+        "prompts": ["an animal calmly near another", "an animal attacking another animal",
+                    "an animal attacking a human"],
+        "fire_if": ["an animal attacking another animal", "an animal attacking a human"],
+        "use": "High-priority aggression alert for pets and livestock.",
+    },
+
+    # CSV line 2: Sensing, Attending
+    "sensing_attending": {
+        "gate_actions": ["Attending", "Sensing", "Exploring"],
+        "region": "actor",
+        "prompts": ["an animal ignoring its surroundings",
+                    "an animal attentively focusing on something nearby",
+                    "an animal scanning the environment"],
+        "fire_if": ["an animal attentively focusing on something nearby",
+                    "an animal scanning the environment"],
+        "use": "Adds attentional state; useful for event context.",
+    },
+
+    # CSV line 3: Communication, Barking
+    "communication_barking": {
+        "gate_actions": ["Barking"],
+        "region": "actor",
+        "prompts": ["a dog barking", "a dog quietly resting", "another animal vocalizing"],
+        "fire_if": "a dog barking",
+        "use": "Pet bark detection; can tie into nuisance or security alerts.",
+    },
+
+    # CSV line 4: Transport, Being carried
+    "transport_being_carried": {
+        "gate_actions": ["Being carried", "Being carried in mouth"],
+        "region": "actor",
+        "prompts": ["an animal walking on its own",
+                    "an animal being carried by a human",
+                    "an animal being carried by another animal"],
+        "fire_if": ["an animal being carried by a human",
+                    "an animal being carried by another animal"],
+        "use": "Differentiates voluntary movement vs being carried.",
+    },
+
+    # CSV line 5: Transport, Being carried in mouth
+    "transport_being_carried_in_mouth": {
+        "gate_actions": ["Being carried in mouth"],
+        "region": "actor",
+        "prompts": ["an animal carrying another animal in its mouth",
+                    "an animal carrying an object in its mouth",
+                    "an animal not carrying anything in its mouth"],
+        "fire_if": ["an animal carrying another animal in its mouth",
+                    "an animal carrying an object in its mouth"],
+        "use": "Important for prey handling and object transport.",
+    },
+
+    # CSV line 6: Transport, Being dragged
+    "transport_being_dragged": {
+        "gate_actions": ["Being dragged"],
+        "region": "actor",
+        "prompts": ["an animal moving under its own power",
+                    "an animal being dragged along the ground",
+                    "an inanimate object being dragged"],
+        "fire_if": "an animal being dragged along the ground",
+        "use": "Potential welfare / abuse signal; high-value alert.",
+    },
+
+    # CSV line 7: Prey, Being eaten
+    "prey_being_eaten": {
+        "gate_actions": ["Being eaten", "Preying", "Eating"],
+        "region": "actor",
+        "prompts": ["an intact animal near a predator",
+                    "an animal carcass being eaten",
+                    "food that is not an animal being eaten"],
+        "fire_if": "an animal carcass being eaten",
+        "use": "Explicit predation / carcass consumption event.",
+    },
+
+    # CSV line 8: Feeding, Biting
+    "feeding_biting": {
+        "gate_actions": ["Biting"],
+        "region": "actor",
+        "prompts": ["an animal biting food",
+                    "an animal biting another animal",
+                    "an animal biting a human or object"],
+        "fire_if": ["an animal biting food",
+                    "an animal biting another animal",
+                    "an animal biting a human or object"],
+        "use": "Refines biting into feeding vs aggression vs destructive chewing.",
+    },
+
+    # CSV line 9: Shelter, Building nest
+    "shelter_building_nest": {
+        "gate_actions": ["Building nest"],
+        "region": "actor",
+        "prompts": ["an animal resting in a nest",
+                    "an animal actively building or arranging nest material",
+                    "an animal away from any nest"],
+        "fire_if": "an animal actively building or arranging nest material",
+        "use": "Life-cycle and shelter behavior; relevant for birds and small mammals.",
+    },
+
+    # CSV line 10: Communication, Calling
+    "communication_calling": {
+        "gate_actions": ["Calling", "Chirping", "Waving"],
+        "region": "actor",
+        "prompts": ["an animal quietly present",
+                    "an animal giving a loud call or vocalization",
+                    "an animal giving a visual signal such as waving"],
+        "fire_if": "an animal giving a loud call or vocalization",
+        "use": "General calling / vocal communication event.",
+    },
+
+    # ==================================================================
+    # B) HEALTH / WELFARE ATTRIBUTES  (crop = actor bbox)
+    # ==================================================================
+    "looks_distressed": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a calm relaxed animal", "a distressed agitated animal",
+                    "an aggressive animal"],
+        "fire_if": "a distressed agitated animal",
+        "use": "General stress flag; pairs with Panting/Startled/Struggling.",
+    },
+    "is_wet": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a dry animal", "a wet animal"],
+        "fire_if": "a wet animal",
+        "use": "Pet caught in rain / fell in water; outdoor welfare.",
+    },
+    "is_shivering_cold": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a comfortable animal", "a cold shivering animal",
+                    "an animal curled up tightly for warmth"],
+        "fire_if": ["a cold shivering animal", "an animal curled up tightly for warmth"],
+        "use": "Cold-stress cue; pairs with snow/low temperature.",
+    },
+    "is_overheating": {
+        "gate_actions": ["Panting", "Resting", "Lying down"],
+        "region": "actor",
+        "prompts": ["a comfortable animal", "an animal panting heavily from heat",
+                    "an animal lying flat in the heat"],
+        "fire_if": ["an animal panting heavily from heat", "an animal lying flat in the heat"],
+        "use": "Heat-stress cue; pairs with hot/sunny scene for livestock.",
+    },
+    "body_condition": {
+        "gate_actions": ["Standing", "Walking", "Resting"],
+        "region": "actor",
+        "prompts": ["a healthy weight animal", "a very thin underweight animal"],
+        "fire_if": "a very thin underweight animal",
+        "use": "Coarse body-condition cue for livestock health.",
+    },
+
+    # ==================================================================
+    # C) INTRUDER / IDENTITY  (crop = actor bbox, gate on low YOLO conf)
+    # ==================================================================
+    "predator_screen": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "gate_low_category_conf": True,
+        "prompts": ["a wolf", "a fox", "a stray dog",
+                    "a sheep", "a cow", "a horse", "a domestic cat"],
+        "fire_if": ["a wolf", "a fox", "a stray dog"],
+        "use": "Open-vocab intruder check around the herd / yard.",
+    },
+    "rodent_pest_screen": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "gate_low_category_conf": True,
+        "prompts": ["a rat or mouse", "a domestic cat", "a domestic dog",
+                    "nothing unusual"],
+        "fire_if": "a rat or mouse",
+        "use": "Pest detection indoors or in storage / barn.",
+    },
+
+    # ==================================================================
+    # D) ENVIRONMENTAL HAZARDS  (crop = whole frame, time-based)
+    # ==================================================================
+    "heavy_rain": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["clear dry weather", "heavy rain", "a flooded wet ground"],
+        "fire_if": ["heavy rain", "a flooded wet ground"],
+        "use": "Shelter the animals; outdoor welfare alert.",
+    },
+    "snowing": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["clear weather", "snow falling", "ground covered in snow"],
+        "fire_if": ["snow falling", "ground covered in snow"],
+        "use": "Cold-weather welfare; pairs with shivering cue.",
+    },
+    "fire_smoke": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a normal safe scene", "fire and flames", "thick smoke"],
+        "fire_if": ["fire and flames", "thick smoke"],
+        "use": "Critical safety alarm — fire near animals.",
+    },
+    "extreme_heat_sun": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["mild cloudy weather", "harsh bright sunshine and heat"],
+        "fire_if": "harsh bright sunshine and heat",
+        "use": "Heat-stress context; combine with panting animals.",
+    },
+    "is_night": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a daytime scene", "a nighttime scene"],
+        "fire_if": None,
+        "use": "Context tag; abnormal night activity is a useful signal.",
+    },
+
+    # ==================================================================
+    # E) FARM ENVIRONMENT  (crop = whole frame, time-based)
+    # ==================================================================
+    "gate_open": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a closed gate", "an open gate"],
+        "fire_if": "an open gate",
+        "use": "Livestock containment — escape risk.",
+    },
+    "empty_trough": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a water trough full of water", "an empty dry water trough"],
+        "fire_if": "an empty dry water trough",
+        "use": "Resource check — animals without water.",
+    },
+    "empty_feeder": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a feeder full of food", "an empty feeder"],
+        "fire_if": "an empty feeder",
+        "use": "Resource check — animals without feed.",
+    },
+
+    # ==================================================================
+    # F) HOUSEHOLD ENVIRONMENT  (crop = whole frame, time-based)
+    # ==================================================================
+    "wet_floor": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a dry clean floor", "a wet floor with a spill",
+                    "a floor with a puddle"],
+        "fire_if": ["a wet floor with a spill", "a floor with a puddle"],
+        "use": "Pet safety — spill or leak indoors.",
+    },
+    "mess_or_accident": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a clean floor", "pet urine or feces on the floor",
+                    "knocked over trash or mess"],
+        "fire_if": ["pet urine or feces on the floor", "knocked over trash or mess"],
+        "use": "Housetraining / cleanup alert for pet owners.",
+    },
+    "near_stove_or_hazard": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a safe room", "a pet near a hot stove",
+                    "a pet near an open flame or candle"],
+        "fire_if": ["a pet near a hot stove", "a pet near an open flame or candle"],
+        "use": "Kitchen / fire hazard for curious pets.",
+    },
+    "door_window_open": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a closed door and window", "an open door or window"],
+        "fire_if": "an open door or window",
+        "use": "Escape risk for indoor pets.",
+    },
+    "chewing_hazard": {
+        "gate_actions": ["Biting", "Manipulating object", "Playing"],
+        "region": "actor",
+        "prompts": ["a pet playing with a safe toy",
+                    "a pet chewing an electrical cord",
+                    "a pet chewing a shoe or furniture"],
+        "fire_if": ["a pet chewing an electrical cord", "a pet chewing a shoe or furniture"],
+        "use": "Destructive / dangerous chewing — cord = safety, shoe = behavior.",
+    },
+}
+
+    # CSV line 11: Defensive, Camouflaging
+    "defensive_camouflaging": {
+        "gate_actions": ["Camouflaging"],
+        "region": "actor",
+        "prompts": ["an animal clearly visible against the background",
+                    "an animal blending into the background",
+                    "no animal present"],
+        "fire_if": "an animal blending into the background",
+        "use": "Visual camouflage / concealment; useful for prey or hiding behavior.",
+    },
+
+    # CSV line 12: Transport, Carrying
+    "transport_carrying": {
+        "gate_actions": ["Carrying"],
+        "region": "actor",
+        "prompts": ["an animal not carrying anything",
+                    "an animal carrying an object",
+                    "an animal carrying another animal"],
+        "fire_if": ["an animal carrying an object",
+                    "an animal carrying another animal"],
+        "use": "Object or conspecific transport; adds context to manipulation.",
+    },
+
+    # CSV line 13: Transport, Carrying in mouth
+    "transport_carrying_in_mouth": {
+        "gate_actions": ["Carrying in mouth"],
+        "region": "actor",
+        "prompts": ["an animal not carrying anything in its mouth",
+                    "an animal carrying an object in its mouth",
+                    "an animal carrying another animal in its mouth"],
+        "fire_if": ["an animal carrying an object in its mouth",
+                    "an animal carrying another animal in its mouth"],
+        "use": "Mouth-based transport; often linked to prey or retrieval behavior.",
+    },
+
+    # CSV line 14: Aggressive, Chasing
+    "aggressive_chasing": {
+        "gate_actions": ["Chasing", "Running"],
+        "region": "actor",
+        "prompts": ["an animal running alone",
+                    "an animal chasing another animal",
+                    "an animal chasing a human"],
+        "fire_if": ["an animal chasing another animal",
+                    "an animal chasing a human"],
+        "use": "Aggression or pursuit; important safety / welfare cue.",
+    },
+
+    # CSV line 15: Communication, Chirping
+    "communication_chirping": {
+        "gate_actions": ["Chirping"],
+        "region": "actor",
+        "prompts": ["a bird quietly perched",
+                    "a bird chirping or singing",
+                    "an animal that is not a bird vocalizing"],
+        "fire_if": "a bird chirping or singing",
+        "use": "Bird vocal communication; useful for activity and welfare context.",
+    },
+
+    # CSV line 16: Movement, Climbing
+    "movement_climbing": {
+        "gate_actions": ["Climbing"],
+        "region": "actor",
+        "prompts": ["an animal on flat ground",
+                    "an animal climbing a vertical or inclined surface",
+                    "an animal descending"],
+        "fire_if": "an animal climbing a vertical or inclined surface",
+        "use": "Refines locomotion; relevant for enclosure use and escape risk.",
+    },
+
+    # CSV line 17: Aggressive, Coiling
+    "aggressive_coiling": {
+        "gate_actions": ["Coiling"],
+        "region": "actor",
+        "prompts": ["a snake lying straight or loosely curved",
+                    "a snake tightly coiled in a defensive or striking posture",
+                    "a rope or object coiled"],
+        "fire_if": "a snake tightly coiled in a defensive or striking posture",
+        "use": "Snake defensive / potentially aggressive posture cue.",
+    },
+
+    # CSV line 18: Aggressive, Competing for dominance
+    "aggressive_competing_for_dominance": {
+        "gate_actions": ["Competing for dominance", "Fighting", "Preying"],
+        "region": "actor",
+        "prompts": ["two animals calmly interacting",
+                    "two animals engaged in physical contest or dominance fight",
+                    "an animal preying on another"],
+        "fire_if": "two animals engaged in physical contest or dominance fight",
+        "use": "Social hierarchy / dominance interactions; important for herd management.",
+    },
+
+    # CSV line 19: Sexual, Dancing
+    "sexual_dancing": {
+        "gate_actions": ["Dancing"],
+        "region": "actor",
+        "prompts": ["an animal moving normally",
+                    "an animal performing a rhythmic courtship or display dance",
+                    "an animal playing without structured dance"],
+        "fire_if": "an animal performing a rhythmic courtship or display dance",
+        "use": "Sexual / courtship display; relevant for breeding behavior.",
+    },
+
+    # CSV line 20: Sexual, Dancing on water
+    "sexual_dancing_on_water": {
+        "gate_actions": ["Dancing on water"],
+        "region": "actor",
+        "prompts": ["an animal swimming normally",
+                    "an animal performing a courtship dance on the water surface",
+                    "an animal floating without dancing"],
+        "fire_if": "an animal performing a courtship dance on the water surface",
+        "use": "Specialized aquatic courtship / display behavior.",
+    },
+
+    # CSV line 21: Death, Dead
+    "death_dead": {
+        "gate_actions": ["Dead"],
+        "region": "actor",
+        "prompts": ["a live animal standing or moving",
+                    "an animal lying motionless and clearly dead",
+                    "no animal present"],
+        "fire_if": "an animal lying motionless and clearly dead",
+        "use": "Critical alert: carcass detection for pets and livestock.",
+    },
+
+    # CSV line 22: Maintenance, Defecating
+    "maintenance_defecating": {
+        "gate_actions": ["Defecating"],
+        "region": "actor",
+        "prompts": ["an animal near feces but not defecating",
+                    "an animal actively defecating",
+                    "no feces or defecation visible"],
+        "fire_if": "an animal actively defecating",
+        "use": "Elimination behavior; useful for housetraining and health monitoring.",
+    },
+
+    # CSV line 23: Defensive, Defensive rearing
+    "defensive_rearing": {
+        "gate_actions": ["Defensive rearing"],
+        "region": "actor",
+        "prompts": ["an animal standing normally",
+                    "an animal rearing up in a defensive posture",
+                    "an animal rearing up in play or training"],
+        "fire_if": "an animal rearing up in a defensive posture",
+        "use": "Defensive / aggressive stance, especially for horses or large mammals.",
+    },
+
+    # CSV line 24: Movement, Detaching as a parasite
+    "movement_detaching_as_parasite": {
+        "gate_actions": ["Detaching as a parasite"],
+        "region": "actor",
+        "prompts": ["a parasite attached to a host",
+                    "a parasite detaching from its host",
+                    "no parasite-host interaction visible"],
+        "fire_if": "a parasite detaching from its host",
+        "use": "Very niche but biologically correct; mainly for specialized monitoring.",
+    },
+
+    # CSV line 25: Movement, Digging
+    "movement_digging": {
+        "gate_actions": ["Digging"],
+        "region": "actor",
+        "prompts": ["an animal on the ground but not digging",
+                    "an animal actively digging in soil or substrate",
+                    "an animal manipulating objects but not digging"],
+        "fire_if": "an animal actively digging in soil or substrate",
+        "use": "Burrowing, foraging, or escape behavior; high value for yard/farm monitoring.",
+    },
+
+    # CSV line 26: Defensive, Displaying defensive pose
+    "defensive_displaying_pose": {
+        "gate_actions": ["Displaying defensive pose"],
+        "region": "actor",
+        "prompts": ["a relaxed animal posture",
+                    "an animal with a clearly defensive or threat display posture",
+                    "an animal in an aggressive attack posture"],
+        "fire_if": "an animal with a clearly defensive or threat display posture",
+        "use": "Non-contact aggression / warning; important for early intervention.",
+    },
+
+    # CSV line 27: Aggressive, Disturbing another animal
+    "aggressive_disturbing_another": {
+        "gate_actions": ["Disturbing another animal"],
+        "region": "actor",
+        "prompts": ["an animal calmly near another animal",
+                    "an animal disturbing, harassing, or bothering another animal",
+                    "an animal attacking another animal"],
+        "fire_if": "an animal disturbing, harassing, or bothering another animal",
+        "use": "Subtle social aggression / bullying; key for welfare and group management.",
+    },
+
+    # CSV line 28: Movement, Diving
+    "movement_diving": {
+        "gate_actions": ["Diving"],
+        "region": "actor",
+        "prompts": ["an animal swimming on the surface",
+                    "an animal diving underwater",
+                    "an animal out of the water"],
+        "fire_if": "an animal diving underwater",
+        "use": "Aquatic movement; useful for fish, waterfowl, or pool safety.",
+    },
+
+    # CSV line 29: Defensive, Doing a back kick
+    "defensive_back_kick": {
+        "gate_actions": ["Doing a back kick"],
+        "region": "actor",
+        "prompts": ["an animal standing normally",
+                    "an animal delivering a backward kick",
+                    "an animal running without kicking"],
+        "fire_if": "an animal delivering a backward kick",
+        "use": "High-risk defensive movement (e.g. horses, cattle); safety alert.",
+    },
+
+    # CSV line 30: Movement, Doing a backward tilt
+    "movement_backward_tilt": {
+        "gate_actions": ["Doing a backward tilt"],
+        "region": "actor",
+        "prompts": ["an animal holding its head or body normally",
+                    "an animal tilting its head or body backward",
+                    "an animal lying down"],
+        "fire_if": "an animal tilting its head or body backward",
+        "use": "Postural refinement that may relate to attention, discomfort, or curiosity.",
+    },
+
+    # CSV line 31: Maintenance, Doing a chin dip
+    "maintenance_chin_dip": {
+        "gate_actions": ["Doing a chin dip"],
+        "region": "actor",
+        "prompts": ["an animal holding its head normally",
+                    "an animal dipping its chin down toward water or food",
+                    "an animal lowering its head without reaching anything"],
+        "fire_if": "an animal dipping its chin down toward water or food",
+        "use": "Fine-grained head movement; may support drinking/feeding refinement.",
+    },
+
+    # CSV line 32: Maintenance, Doing a face dip
+    "maintenance_face_dip": {
+        "gate_actions": ["Doing a face dip"],
+        "region": "actor",
+        "prompts": ["an animal holding its head normally",
+                    "an animal dipping its face into water or food",
+                    "an animal sniffing above a surface"],
+        "fire_if": "an animal dipping its face into water or food",
+        "use": "Close-contact interaction with water/food; complements drinking/feeding rules.",
+    },
+
+    # CSV line 33: Movement, Doing a neck raise
+    "movement_neck_raise": {
+        "gate_actions": ["Doing a neck raise"],
+        "region": "actor",
+        "prompts": ["an animal holding its neck in a neutral position",
+                    "an animal raising its neck or head upwards",
+                    "an animal lowering its neck"],
+        "fire_if": "an animal raising its neck or head upwards",
+        "use": "Postural cue; may indicate alertness, vigilance, or attention.",
+    },
+
+    # CSV line 34: Movement, Doing a side tilt
+    "movement_side_tilt": {
+        "gate_actions": ["Doing a side tilt"],
+        "region": "actor",
+        "prompts": ["an animal holding its head or body straight",
+                    "an animal tilting its head or body to the side",
+                    "an animal lying down"],
+        "fire_if": "an animal tilting its head or body to the side",
+        "use": "Head/body tilt; may signal curiosity, imbalance, or neurological issues.",
+    },
+
+    # CSV line 35: Sexual, Doing push up
+    "sexual_doing_push_up": {
+        "gate_actions": ["Doing push up"],
+        "region": "actor",
+        "prompts": ["an animal moving normally",
+                    "an animal performing repeated push-up like movements as display",
+                    "an animal resting"],
+        "fire_if": "an animal performing repeated push-up like movements as display",
+        "use": "Sexual or territorial display (common in reptiles); niche but ethologically correct.",
+    },
+
+    # CSV line 36: Movement, Doing somersault
+    "movement_doing_somersault": {
+        "gate_actions": ["Doing somersault"],
+        "region": "actor",
+        "prompts": ["an animal moving in a straight path",
+                    "an animal performing a full body somersault or flip",
+                    "an animal lying still"],
+        "fire_if": "an animal performing a full body somersault or flip",
+        "use": "Playful or escape-related acrobatics; more common in small agile animals.",
+    },
+
+    # CSV line 37: Movement, Drifting
+    "movement_drifting": {
+        "gate_actions": ["Drifting"],
+        "region": "actor",
+        "prompts": ["an animal actively swimming or walking",
+                    "an animal passively drifting with current or air",
+                    "an animal stationary"],
+        "fire_if": "an animal passively drifting with current or air",
+        "use": "Aquatic or aerial passive movement; context for currents or wind.",
+    },
+
+    # CSV line 38: Feeding, Drinking
+    "feeding_drinking": {
+        "gate_actions": ["Drinking"],
+        "region": "actor",
+        "prompts": ["an animal near water but not drinking",
+                    "an animal actively drinking water or liquid",
+                    "no water source visible"],
+        "fire_if": "an animal actively drinking water or liquid",
+        "use": "Base drinking event; links to hydration and resource monitoring.",
+    },
+
+    # CSV line 39: Death, Dying
+    "death_dying": {
+        "gate_actions": ["Dying"],
+        "region": "actor",
+        "prompts": ["a healthy active animal",
+                    "an animal in visible distress or dying",
+                    "an animal already dead"],
+        "fire_if": "an animal in visible distress or dying",
+        "use": "Critical welfare state; pre-death events for urgent alerting.",
+    },
+
+    # CSV line 40: Feeding, Eating
+    "feeding_eating": {
+        "gate_actions": ["Eating"],
+        "region": "actor",
+        "prompts": ["an animal near food but not eating",
+                    "an animal actively eating food",
+                    "no food visible near the animal"],
+        "fire_if": "an animal actively eating food",
+        "use": "Core feeding event; supports meal logging and intake estimation.",
+    },
+
+    # CSV line 41: Movement, Entering its nest
+    "movement_entering_nest": {
+        "gate_actions": ["Entering its nest"],
+        "region": "actor",
+        "prompts": ["an animal away from its nest",
+                    "an animal entering a nest, burrow, or shelter",
+                    "an animal resting inside a nest"],
+        "fire_if": "an animal entering a nest, burrow, or shelter",
+        "use": "Shelter use and rest-site behavior; important for housing/breeding.",
+    },
+
+    # CSV line 42: Defensive, Escaping
+    "defensive_escaping": {
+        "gate_actions": ["Escaping", "Fleeing"],
+        "region": "actor",
+        "prompts": ["an animal moving calmly",
+                    "an animal rapidly escaping from an enclosure or threat",
+                    "an animal outside but stationary"],
+        "fire_if": "an animal rapidly escaping from an enclosure or threat",
+        "use": "Escape behavior; directly relevant for farm and household containment.",
+    },
+
+    # CSV line 43: Life cycle, Exiting cocoon
+    "life_cycle_exiting_cocoon": {
+        "gate_actions": ["Exiting cocoon", "Undergoing chrysalis"],
+        "region": "actor",
+        "prompts": ["no cocoon or chrysalis visible",
+                    "an insect emerging from a cocoon or chrysalis",
+                    "a closed cocoon or chrysalis with no emergence"],
+        "fire_if": "an insect emerging from a cocoon or chrysalis",
+        "use": "Insect life-cycle event; niche but biologically valid.",
+    },
+
+    # CSV line 44: Movement, Exiting nest
+    "movement_exiting_nest": {
+        "gate_actions": ["Exiting nest"],
+        "region": "actor",
+        "prompts": ["an animal inside a nest or burrow",
+                    "an animal exiting a nest or burrow",
+                    "an animal away from any nest"],
+        "fire_if": "an animal exiting a nest or burrow",
+        "use": "Tracked nest occupancy; complements entering-nest behavior.",
+    },
+
+    # CSV line 45: Sensing, Exploring
+    "sensing_exploring": {
+        "gate_actions": ["Exploring", "Sensing"],
+        "region": "actor",
+        "prompts": ["an animal staying in one place",
+                    "an animal actively exploring its environment",
+                    "an animal quickly fleeing without exploration"],
+        "fire_if": "an animal actively exploring its environment",
+        "use": "General exploratory behavior; useful for activity and enrichment metrics.",
+    },
+
+    # CSV line 46: Movement, Falling
+    "movement_falling": {
+        "gate_actions": ["Falling"],
+        "region": "actor",
+        "prompts": ["an animal standing or walking",
+                    "an animal unintentionally falling from a height or surface",
+                    "an animal lying down intentionally"],
+        "fire_if": "an animal unintentionally falling from a height or surface",
+        "use": "Safety-critical event; fall detection for pets and livestock.",
+    },
+
+    # CSV line 47: Aggressive, Fighting
+    "aggressive_fighting": {
+        "gate_actions": ["Fighting"],
+        "region": "actor",
+        "prompts": ["animals calmly interacting",
+                    "animals engaged in a physical fight",
+                    "animals playing without clear aggression"],
+        "fire_if": "animals engaged in a physical fight",
+        "use": "Major aggression event; key welfare and safety indicator.",
+    },
+
+    # CSV line 48: Movement, Flapping
+    "movement_flapping": {
+        "gate_actions": ["Flapping"],
+        "region": "actor",
+        "prompts": ["a bird or bat with wings still",
+                    "a bird or bat flapping its wings without flying",
+                    "an animal flying continuously"],
+        "fire_if": "a bird or bat flapping its wings without flying",
+        "use": "Wing movement without full flight; can indicate agitation or pre-flight.",
+    },
+
+    # CSV line 49: Movement, Flapping tail
+    "movement_flapping_tail": {
+        "gate_actions": ["Flapping tail"],
+        "region": "actor",
+        "prompts": ["an animal with tail still",
+                    "an animal flapping or rapidly moving its tail",
+                    "an animal wagging tail slowly"],
+        "fire_if": "an animal flapping or rapidly moving its tail",
+        "use": "Tail movement refinement; can signal agitation, excitement, or communication.",
+    },
+
+    # CSV line 50: General, Flapping its ears
+    "general_flapping_ears": {
+        "gate_actions": ["Flapping its ears"],
+        "region": "actor",
+        "prompts": ["an animal with ears still",
+                    "an animal flapping or moving its ears repeatedly",
+                    "an animal with ears pinned back in a static pose"],
+        "fire_if": "an animal flapping or moving its ears repeatedly",
+        "use": "Ear movement; may relate to irritation, attention, or insect avoidance.",
+    },
+
+    # CSV line 51: Defensive, Fleeing
+    "defensive_fleeing": {
+        "gate_actions": ["Fleeing"],
+        "region": "actor",
+        "prompts": ["an animal moving calmly",
+                    "an animal rapidly fleeing from a perceived threat",
+                    "an animal stationary despite nearby activity"],
+        "fire_if": "an animal rapidly fleeing from a perceived threat",
+        "use": "Strong fear/escape response; key for welfare and containment alerts.",
+    },
+
+    # CSV line 52: Movement, Flying
+    "movement_flying": {
+        "gate_actions": ["Flying"],
+        "region": "actor",
+        "prompts": ["a bird or bat perched",
+                    "a bird or bat flying in the air",
+                    "a ground animal jumping but not flying"],
+        "fire_if": "a bird or bat flying in the air",
+        "use": "Flight behavior; useful for aviaries, poultry houses, and wild bird context.",
+    },
+
+    # CSV line 53: General, Gasping for air
+    "general_gasping_for_air": {
+        "gate_actions": ["Gasping for air"],
+        "region": "actor",
+        "prompts": ["an animal breathing normally",
+                    "an animal gasping or struggling to breathe",
+                    "an animal panting from heat or exertion"],
+        "fire_if": "an animal gasping or struggling to breathe",
+        "use": "Critical respiratory distress cue; high-priority health alert.",
+    },
+
+    # CSV line 54: Prey, Getting bullied
+    "prey_getting_bullied": {
+        "gate_actions": ["Getting bullied", "Disturbing another animal"],
+        "region": "actor",
+        "prompts": ["an animal alone and calm",
+                    "an animal being harassed or bullied by another",
+                    "animals engaged in mutual play"],
+        "fire_if": "an animal being harassed or bullied by another",
+        "use": "Social stress and welfare issue; relevant for group housing.",
+    },
+
+    # CSV line 55: Life cycle, Giving birth
+    "life_cycle_giving_birth": {
+        "gate_actions": ["Giving birth"],
+        "region": "actor",
+        "prompts": ["a pregnant animal not yet in labor",
+                    "an animal actively giving birth",
+                    "a non-pregnant animal resting"],
+        "fire_if": "an animal actively giving birth",
+        "use": "High-value breeding/production event; critical for farm management.",
+    },
+
+    # CSV line 56: Communication, Giving off light
+    "communication_giving_off_light": {
+        "gate_actions": ["Giving off light"],
+        "region": "actor",
+        "prompts": ["an animal not emitting light",
+                    "a bioluminescent animal emitting light",
+                    "an artificial light source in the environment"],
+        "fire_if": "a bioluminescent animal emitting light",
+        "use": "Niche but biologically correct (e.g. fireflies); low direct business value.",
+    },
+
+    # CSV line 57: Movement, Gliding
+    "movement_gliding": {
+        "gate_actions": ["Gliding"],
+        "region": "actor",
+        "prompts": ["an animal walking or running",
+                    "an animal gliding through air or water without active flapping",
+                    "an animal flying with active wing beats"],
+        "fire_if": "an animal gliding through air or water without active flapping",
+        "use": "Passive flight/swim movement; context for aerial/aquatic behavior.",
+    },
+
+    # CSV line 58: Maintenance, Grooming
+    "maintenance_grooming": {
+        "gate_actions": ["Grooming", "Performing allo-grooming"],
+        "region": "actor",
+        "prompts": ["an animal not interacting with its coat",
+                    "an animal grooming itself",
+                    "an animal grooming another animal"],
+        "fire_if": ["an animal grooming itself",
+                    "an animal grooming another animal"],
+        "use": "Self and social grooming; core welfare and social behavior metric.",
+    },
+
+    # CSV line 59: Movement, Hanging
+    "movement_hanging": {
+        "gate_actions": ["Hanging"],
+        "region": "actor",
+        "prompts": ["an animal standing or lying on a surface",
+                    "an animal hanging from a branch, bar, or ceiling",
+                    "no animal present"],
+        "fire_if": "an animal hanging from a branch, bar, or ceiling",
+        "use": "Suspended posture; relevant for arboreal species and enrichment assessment.",
+    },
+
+    # CSV line 60: Life cycle, Hatching
+    "life_cycle_hatching": {
+        "gate_actions": ["Hatching"],
+        "region": "actor",
+        "prompts": ["intact egg with no hatch",
+                    "an animal emerging from an egg during hatching",
+                    "empty egg shell after hatch"],
+        "fire_if": "an animal emerging from an egg during hatching",
+        "use": "Key breeding event; useful in poultry and reptile breeding systems.",
+    },
+
+    # CSV line 61: Sensing, Having a flehmen response
+    "sensing_flehmen_response": {
+        "gate_actions": ["Having a flehmen response"],
+        "region": "actor",
+        "prompts": ["a mammal with normal facial expression",
+                    "a mammal with upper lip curled in flehmen response",
+                    "a non-mammal with no flehmen behavior"],
+        "fire_if": "a mammal with upper lip curled in flehmen response",
+        "use": "Species-specific chemical-sensing behavior (horses, cattle, goats, cats); niche but biologically important.",
+    },
+
+    # CSV line 62: Aggressive, Hissing
+    "aggressive_hissing": {
+        "gate_actions": ["Hissing"],
+        "region": "actor",
+        "prompts": ["an animal silent and calm",
+                    "an animal hissing in an aggressive or defensive way",
+                    "an animal making other vocalizations"],
+        "fire_if": "an animal hissing in an aggressive or defensive way",
+        "use": "Strong warning signal (cats, snakes, etc.); useful for aggression detection.",
+    },
+
+    # CSV line 63: Affection, Holding hands
+    "affection_holding_hands": {
+        "gate_actions": ["Holding hands"],
+        "region": "actor",
+        "prompts": ["two animals or an animal and human not touching hands",
+                    "two animals or an animal and human holding hands or paws",
+                    "animals physically fighting"],
+        "fire_if": "two animals or an animal and human holding hands or paws",
+        "use": "Affiliative contact; mainly a pet/primates niche but nice for owner-facing UX.",
+    },
+
+    # CSV line 64: Movement, Hopping
+    "movement_hopping": {
+        "gate_actions": ["Hopping"],
+        "region": "actor",
+        "prompts": ["an animal walking normally",
+                    "an animal performing repeated hops or jumps",
+                    "an animal lying or sitting still"],
+        "fire_if": "an animal performing repeated hops or jumps",
+        "use": "Locomotion pattern; relevant for rabbits, birds, and small mammals.",
+    },
+
+    # CSV line 65: Affection, Hugging
+    "affection_hugging": {
+        "gate_actions": ["Hugging"],
+        "region": "actor",
+        "prompts": ["animals or humans near each other but not embracing",
+                    "an animal hugging or embracing another animal or human",
+                    "animals fighting or grappling"],
+        "fire_if": "an animal hugging or embracing another animal or human",
+        "use": "Positive social contact; high UX value for pet applications.",
+    },
+
+    # CSV line 66: Movement, Immobilized
+    "movement_immobilized": {
+        "gate_actions": ["Immobilized"],
+        "region": "actor",
+        "prompts": ["an animal moving normally",
+                    "an animal immobilized or unable to move",
+                    "an animal sleeping or resting but able to move"],
+        "fire_if": "an animal immobilized or unable to move",
+        "use": "Critical welfare/safety cue; may indicate restraint, injury, or severe illness.",
+    },
+
+    # CSV line 67: Movement, Jumping
+    "movement_jumping": {
+        "gate_actions": ["Jumping"],
+        "region": "actor",
+        "prompts": ["an animal walking or running",
+                    "an animal jumping or leaping",
+                    "an animal lying or sitting"],
+        "fire_if": "an animal jumping or leaping",
+        "use": "General jump behavior; useful for activity metrics and escape risk.",
+    },
+
+    # CSV line 68: General, Keeping still
+    "general_keeping_still": {
+        "gate_actions": ["Keeping still"],
+        "region": "actor",
+        "prompts": ["an animal moving around",
+                    "an animal keeping very still while awake",
+                    "an animal asleep or resting normally"],
+        "fire_if": "an animal keeping very still while awake",
+        "use": "Stillness; can be normal vigilance or abnormal freezing, depending on context.",
+    },
+
+    # CSV line 69: Movement, Landing
+    "movement_landing": {
+        "gate_actions": ["Landing"],
+        "region": "actor",
+        "prompts": ["an animal already on the ground",
+                    "a flying animal landing on a surface",
+                    "an animal crashing rather than controlled landing"],
+        "fire_if": "a flying animal landing on a surface",
+        "use": "Flight phase transition; complements Flying and Falling rules.",
+    },
+
+    # CSV line 70: Movement, Lying down
+    "movement_lying_down": {
+        "gate_actions": ["Lying down"],
+        "region": "actor",
+        "prompts": ["an animal standing",
+                    "an animal moving from standing/sitting into lying down",
+                    "an animal already lying down"],
+        "fire_if": "an animal moving from standing/sitting into lying down",
+        "use": "Posture transition; valuable for activity, rest, and welfare assessment.",
+    },
+
+    # CSV line 71: Life cycle, Laying eggs
+    "life_cycle_laying_eggs": {
+        "gate_actions": ["Laying eggs"],
+        "region": "actor",
+        "prompts": ["a bird or reptile near a nest but not laying",
+                    "an animal actively laying eggs",
+                    "empty nest with eggs already present"],
+        "fire_if": "an animal actively laying eggs",
+        "use": "Key reproductive/production event; very important for poultry and reptiles.",
+    },
+
+    # CSV line 72: Movement, Leaning
+    "movement_leaning": {
+        "gate_actions": ["Leaning"],
+        "region": "actor",
+        "prompts": ["an animal standing without support",
+                    "an animal leaning against a wall, fence, or object",
+                    "an animal lying down"],
+        "fire_if": "an animal leaning against a wall, fence, or object",
+        "use": "Posture refinement; may indicate fatigue, discomfort, or normal resting.",
+    },
+
+    # CSV line 73: Maintenance, Licking
+    "maintenance_licking": {
+        "gate_actions": ["Licking"],
+        "region": "actor",
+        "prompts": ["an animal not licking anything",
+                    "an animal licking its own body",
+                    "an animal licking another animal or object"],
+        "fire_if": ["an animal licking its own body",
+                    "an animal licking another animal or object"],
+        "use": "Self-care, social contact, or object interaction; welfare and bonding cue.",
+    },
+
+    # CSV line 74: Movement, Lying on its side
+    "movement_lying_on_side": {
+        "gate_actions": ["Lying on its side"],
+        "region": "actor",
+        "prompts": ["an animal standing or sitting",
+                    "an animal lying upright (sternal)",
+                    "an animal lying on its side"],
+        "fire_if": "an animal lying on its side",
+        "use": "Posture nuance; can indicate deep rest, illness, or distress depending on context.",
+    },
+
+    # CSV line 75: General, Lying on top
+    "general_lying_on_top": {
+        "gate_actions": ["Lying on top"],
+        "region": "actor",
+        "prompts": ["an animal lying alone",
+                    "an animal lying on top of another animal",
+                    "an animal lying on top of objects"],
+        "fire_if": ["an animal lying on top of another animal",
+                    "an animal lying on top of objects"],
+        "use": "Social or spatial stacking; may be affiliative or dominance-related.",
+    },
+
+    # CSV line 76: Movement, Manipulating object
+    "movement_manipulating_object": {
+        "gate_actions": ["Manipulating object"],
+        "region": "actor",
+        "prompts": ["an animal not interacting with any object",
+                    "an animal manipulating or playing with an object",
+                    "an animal destroying an object aggressively"],
+        "fire_if": "an animal manipulating or playing with an object",
+        "use": "Object interaction; key for enrichment, play, and chewing hazard detection.",
+    },
+
+    # CSV line 77: Life cycle, Molting
+    "life_cycle_molting": {
+        "gate_actions": ["Molting"],
+        "region": "actor",
+        "prompts": ["an animal with normal coat or feathers",
+                    "an animal visibly shedding feathers or hair (molting)",
+                    "plucked or damaged coat without normal molt"],
+        "fire_if": "an animal visibly shedding feathers or hair (molting)",
+        "use": "Natural coat/feather renewal; relevant for poultry and reptiles.",
+    },
+
+    # CSV line 78: Movement, Moving
+    "movement_moving": {
+        "gate_actions": ["Moving"],
+        "region": "actor",
+        "prompts": ["an animal stationary",
+                    "an animal moving around the enclosure or environment",
+                    "no animal present"],
+        "fire_if": "an animal moving around the enclosure or environment",
+        "use": "Generic movement; baseline for activity metrics.",
+    },
+
+    # CSV line 79: General, Panting
+    "general_panting": {
+        "gate_actions": ["Panting"],
+        "region": "actor",
+        "prompts": ["an animal breathing normally",
+                    "an animal panting with open mouth",
+                    "an animal gasping severely for air"],
+        "fire_if": "an animal panting with open mouth",
+        "use": "Thermoregulation or exertion; important for heat stress and exercise monitoring.",
+    },
+
+    # CSV line 80: Feeding, Pecking
+    "feeding_pecking": {
+        "gate_actions": ["Pecking"],
+        "region": "actor",
+        "prompts": ["a bird near food but not pecking",
+                    "a bird pecking at food on the ground or in a feeder",
+                    "a bird pecking another bird aggressively"],
+        "fire_if": ["a bird pecking at food on the ground or in a feeder",
+                    "a bird pecking another bird aggressively"],
+        "use": "Differentiates feeding pecks vs aggressive pecks; crucial for poultry welfare.",
+    },
+
+    # CSV line 81: Sexual, Performing sexual display
+    "sexual_performing_display": {
+        "gate_actions": ["Performing sexual display"],
+        "region": "actor",
+        "prompts": ["an animal moving normally",
+                    "an animal performing a courtship or sexual display",
+                    "an animal playing without courtship"],
+        "fire_if": "an animal performing a courtship or sexual display",
+        "use": "Courtship behavior; important for breeding timing and observation.",
+    },
+
+    # CSV line 82: Maintenance, Performing allo-grooming
+    "maintenance_allo_grooming": {
+        "gate_actions": ["Performing allo-grooming"],
+        "region": "actor",
+        "prompts": ["an animal alone grooming itself",
+                    "an animal grooming another animal",
+                    "animals in contact without grooming"],
+        "fire_if": "an animal grooming another animal",
+        "use": "Social grooming; strong indicator of social bonding and welfare.",
+    },
+
+    # CSV line 83: Maintenance, Performing allo-preening
+    "maintenance_allo_preening": {
+        "gate_actions": ["Performing allo-preening"],
+        "region": "actor",
+        "prompts": ["a bird preening itself",
+                    "a bird preening another bird",
+                    "birds near each other without preening"],
+        "fire_if": "a bird preening another bird",
+        "use": "Bird social grooming; useful for flock welfare and bonding.",
+    },
+
+    # CSV line 84: Sexual, Performing copulatory mounting
+    "sexual_copulatory_mounting": {
+        "gate_actions": ["Performing copulatory mounting"],
+        "region": "actor",
+        "prompts": ["an animal near another without mounting",
+                    "an animal mounting another animal in copulation",
+                    "an animal mounting in play or dominance without copulation"],
+        "fire_if": "an animal mounting another animal in copulation",
+        "use": "Mating event; key for breeding records and reproductive management.",
+    },
+
+    # CSV line 85: Sexual, Performing sexual exploration
+    "sexual_exploration": {
+        "gate_actions": ["Performing sexual exploration"],
+        "region": "actor",
+        "prompts": ["an animal ignoring potential mates",
+                    "an animal sniffing or investigating a potential mate sexually",
+                    "an animal playing without sexual intent"],
+        "fire_if": "an animal sniffing or investigating a potential mate sexually",
+        "use": "Pre-mating sexual interest; early indicator for breeding readiness.",
+    },
+
+    # CSV line 86: Sexual, Performing sexual pursuit
+    "sexual_pursuit": {
+        "gate_actions": ["Performing sexual pursuit"],
+        "region": "actor",
+        "prompts": ["an animal moving randomly",
+                    "an animal actively pursuing a potential mate",
+                    "an animal chasing aggressively without sexual context"],
+        "fire_if": "an animal actively pursuing a potential mate",
+        "use": "Directed courtship pursuit; supports reproduction monitoring.",
+    },
+
+    # CSV line 87: Social, Playing
+    "social_playing": {
+        "gate_actions": ["Playing"],
+        "region": "actor",
+        "prompts": ["an animal resting or inactive",
+                    "an animal playing with another animal or toy",
+                    "animals fighting aggressively rather than playing"],
+        "fire_if": "an animal playing with another animal or toy",
+        "use": "Play behavior; high UX value and enrichment indicator.",
+    },
+
+    # CSV line 88: Prey, Playing dead
+    "prey_playing_dead": {
+        "gate_actions": ["Playing dead"],
+        "region": "actor",
+        "prompts": ["an animal lying normally resting",
+                    "an animal motionless in a typical playing-dead posture",
+                    "a truly dead animal"],
+        "fire_if": "an animal motionless in a typical playing-dead posture",
+        "use": "Antipredator or behavioral response; niche but ethologically correct.",
+    },
+
+    # CSV line 89: Aggressive, Pounding
+    "aggressive_pounding": {
+        "gate_actions": ["Pounding"],
+        "region": "actor",
+        "prompts": ["an animal walking or standing calmly",
+                    "an animal pounding or striking a surface or another animal",
+                    "an animal playing gently"],
+        "fire_if": "an animal pounding or striking a surface or another animal",
+        "use": "Forceful striking; aggression or stress behavior with safety implications.",
+    },
+
+    # CSV line 90: Maintenance, Preening
+    "maintenance_preening": {
+        "gate_actions": ["Preening"],
+        "region": "actor",
+        "prompts": ["a bird with feathers undisturbed",
+                    "a bird preening its own feathers",
+                    "a bird preening another bird (allo-preening)"],
+        "fire_if": "a bird preening its own feathers",
+        "use": "Self-feather care; standard maintenance and welfare indicator in birds.",
+    },
+
+    # CSV line 91: Aggressive, Preying
+    "aggressive_preying": {
+        "gate_actions": ["Preying"],
+        "region": "actor",
+        "prompts": ["a predator near potential prey but inactive",
+                    "a predator actively preying on another animal",
+                    "an animal feeding on non-animal food"],
+        "fire_if": "a predator actively preying on another animal",
+        "use": "Predator-prey interaction; critical for herd/yard safety and wildlife context.",
+    },
+
+    # CSV line 92: Sexual, Puffing its throat
+    "sexual_puffing_throat": {
+        "gate_actions": ["Puffing its throat"],
+        "region": "actor",
+        "prompts": ["an animal with normal neck/throat",
+                    "an animal puffing its throat or dewlap in display",
+                    "an animal breathing heavily without throat display"],
+        "fire_if": "an animal puffing its throat or dewlap in display",
+        "use": "Sexual or territorial display (e.g. birds, reptiles); breeding/territory cue.",
+    },
+
+    # CSV line 93: Movement, Pulling
+    "movement_pulling": {
+        "gate_actions": ["Pulling"],
+        "region": "actor",
+        "prompts": ["an animal near an object but not moving it",
+                    "an animal pulling or dragging an object or another animal",
+                    "an animal pushing instead of pulling"],
+        "fire_if": "an animal pulling or dragging an object or another animal",
+        "use": "Object/conspecific manipulation; relevant for work, play, or aggression.",
+    },
+
+    # CSV line 94: Aggressive, Rattling
+    "aggressive_rattling": {
+        "gate_actions": ["Rattling"],
+        "region": "actor",
+        "prompts": ["a snake or animal with tail still",
+                    "a rattlesnake or similar animal rattling its tail",
+                    "an object rattling without animal involvement"],
+        "fire_if": "a rattlesnake or similar animal rattling its tail",
+        "use": "Strong warning signal; high-risk context for humans and animals.",
+    },
+
+    # CSV line 95: Resting, Resting
+    "resting_resting": {
+        "gate_actions": ["Resting"],
+        "region": "actor",
+        "prompts": ["an animal actively moving",
+                    "an animal resting while awake",
+                    "an animal sleeping"],
+        "fire_if": "an animal resting while awake",
+        "use": "Non-sleep rest; contributes to time-budget and welfare metrics.",
+    },
+
+    # CSV line 96: Defensive, Retaliating
+    "defensive_retaliating": {
+        "gate_actions": ["Retaliating"],
+        "region": "actor",
+        "prompts": ["an animal being attacked but not responding",
+                    "an animal retaliating against another",
+                    "animals playing without retaliation"],
+        "fire_if": "an animal retaliating against another",
+        "use": "Escalation in aggressive interaction; important for conflict detection.",
+    },
+
+    # CSV line 97: Defensive, Retreating
+    "defensive_retreating": {
+        "gate_actions": ["Retreating"],
+        "region": "actor",
+        "prompts": ["an animal standing its ground",
+                    "an animal retreating away from a threat or conflict",
+                    "an animal casually walking without retreat"],
+        "fire_if": "an animal retreating away from a threat or conflict",
+        "use": "Withdrawal from conflict; key for reading social dynamics and stress.",
+    },
+
+    # CSV line 98: Movement, Rolling
+    "movement_rolling": {
+        "gate_actions": ["Rolling"],
+        "region": "actor",
+        "prompts": ["an animal standing or lying still",
+                    "an animal rolling its body on the ground",
+                    "an animal rolling an object only"],
+        "fire_if": "an animal rolling its body on the ground",
+        "use": "Body rolling; can indicate play, dust bathing, or discomfort.",
+    },
+
+    # CSV line 99: Maintenance, Rubbing its head
+    "maintenance_rubbing_head": {
+        "gate_actions": ["Rubbing its head"],
+        "region": "actor",
+        "prompts": ["an animal with head still",
+                    "an animal rubbing its head against an object or surface",
+                    "an animal scratching with a limb instead of rubbing"],
+        "fire_if": "an animal rubbing its head against an object or surface",
+        "use": "Local grooming or irritation; may indicate parasites or itch.",
+    },
+
+    # CSV line 100: Movement, Running
+    "movement_running": {
+        "gate_actions": ["Running"],
+        "region": "actor",
+        "prompts": ["an animal walking slowly",
+                    "an animal running at speed",
+                    "an animal lying or sitting"],
+        "fire_if": "an animal running at speed",
+        "use": "High-activity locomotion; central for activity tracking and flight/escape.",
+    },
+
+    # CSV line 101: Movement, Running on water
+    "movement_running_on_water": {
+        "gate_actions": ["Running on water"],
+        "region": "actor",
+        "prompts": ["an animal swimming normally",
+                    "an animal appearing to run on the water surface",
+                    "an animal floating passively"],
+        "fire_if": "an animal appearing to run on the water surface",
+        "use": "Specialized locomotion (e.g. basilisk lizards); biologically rare but correct.",
+    },
+
+    # CSV line 102: Sensing, Sensing
+    "sensing_sensing": {
+        "gate_actions": ["Sensing"],
+        "region": "actor",
+        "prompts": ["an animal indifferent to surroundings",
+                    "an animal actively sensing or scanning (smelling, listening, looking)",
+                    "an animal asleep"],
+        "fire_if": "an animal actively sensing or scanning (smelling, listening, looking)",
+        "use": "General sensory engagement; complements Exploring and Attending.",
+    },
+
+    # CSV line 103: Maintenance, Shaking
+    "maintenance_shaking": {
+        "gate_actions": ["Shaking"],
+        "region": "actor",
+        "prompts": ["an animal still",
+                    "an animal shaking its body (e.g. after getting wet)",
+                    "an animal trembling from cold or fear"],
+        "fire_if": "an animal shaking its body (e.g. after getting wet)",
+        "use": "Body shake; relates to drying, discomfort, or normal maintenance.",
+    },
+
+    # CSV line 104: Maintenance, Shaking head
+    "maintenance_shaking_head": {
+        "gate_actions": ["Shaking head"],
+        "region": "actor",
+        "prompts": ["an animal with head still",
+                    "an animal shaking its head repeatedly",
+                    "an animal moving head slowly without shaking"],
+        "fire_if": "an animal shaking its head repeatedly",
+        "use": "Head shake; can indicate ear irritation, parasites, or minor discomfort.",
+    },
+
+    # CSV line 105: Feeding, Sharing food
+    "feeding_sharing_food": {
+        "gate_actions": ["Sharing food"],
+        "region": "actor",
+        "prompts": ["an animal eating alone",
+                    "animals sharing food from the same source peacefully",
+                    "animals competing aggressively over food"],
+        "fire_if": "animals sharing food from the same source peacefully",
+        "use": "Affiliative feeding behavior; useful for social and welfare assessment.",
+    },
+
+    # CSV line 106: Affection, Showing affection
+    "affection_showing_affection": {
+        "gate_actions": ["Showing affection"],
+        "region": "actor",
+        "prompts": ["an animal ignoring another animal or human",
+                    "an animal showing affectionate behavior (nuzzling, licking, leaning)",
+                    "an animal behaving aggressively instead"],
+        "fire_if": "an animal showing affectionate behavior (nuzzling, licking, leaning)",
+        "use": "Positive social interaction; high UX value for pet applications.",
+    },
+
+    # CSV line 107: Movement, Sinking
+    "movement_sinking": {
+        "gate_actions": ["Sinking"],
+        "region": "actor",
+        "prompts": ["an animal swimming at the surface",
+                    "an animal sinking or descending in water",
+                    "no water environment present"],
+        "fire_if": "an animal sinking or descending in water",
+        "use": "Aquatic vertical movement; may indicate normal diving or potential distress.",
+    },
+
+    # CSV line 108: Movement, Sitting
+    "movement_sitting": {
+        "gate_actions": ["Sitting"],
+        "region": "actor",
+        "prompts": ["an animal standing",
+                    "an animal sitting",
+                    "an animal lying down"],
+        "fire_if": "an animal sitting",
+        "use": "Posture category; core for time-budget and activity classification.",
+    },
+
+    # CSV line 109: Resting, Sleeping
+    "resting_sleeping": {
+        "gate_actions": ["Sleeping"],
+        "region": "actor",
+        "prompts": ["an animal awake and active",
+                    "an animal sleeping or in a clear sleep posture",
+                    "an animal resting but awake"],
+        "fire_if": "an animal sleeping or in a clear sleep posture",
+        "use": "Sleep state; fundamental for welfare and activity cycles.",
+    },
+
+    # CSV line 110: Resting, Sleeping in its nest
+    "resting_sleeping_in_nest": {
+        "gate_actions": ["Sleeping in its nest"],
+        "region": "actor",
+        "prompts": ["an animal sleeping outside a nest",
+                    "an animal sleeping inside its nest or burrow",
+                    "an animal awake inside its nest"],
+        "fire_if": "an animal sleeping inside its nest or burrow",
+        "use": "Sleep location; useful for housing quality and nest use metrics.",
+    },
+
+    # CSV line 111: General, Spitting
+    "general_spitting": {
+        "gate_actions": ["Spitting"],
+        "region": "actor",
+        "prompts": ["an animal with mouth closed",
+                    "an animal spitting liquid or material",
+                    "an animal panting or drooling"],
+        "fire_if": "an animal spitting liquid or material",
+        "use": "Spitting behavior; may indicate aggression (e.g. llamas) or discomfort.",
+    },
+
+    # CSV line 112: Aggressive, Spitting venom
+    "aggressive_spitting_venom": {
+        "gate_actions": ["Spitting venom"],
+        "region": "actor",
+        "prompts": ["a venomous animal inactive",
+                    "a venomous animal spitting or spraying venom",
+                    "a non-venomous animal spitting normal liquid"],
+        "fire_if": "a venomous animal spitting or spraying venom",
+        "use": "Extreme aggressive/defensive event; niche but high-risk biologically.",
+    },
+
+    # CSV line 113: Movement, Spreading
+    "movement_spreading": {
+        "gate_actions": ["Spreading"],
+        "region": "actor",
+        "prompts": ["an animal in a compact posture",
+                    "an animal spreading its body or limbs",
+                    "an animal contracting its body"],
+        "fire_if": "an animal spreading its body or limbs",
+        "use": "Body spreading; may relate to display, thermoregulation, or comfort.",
+    },
+
+    # CSV line 114: Movement, Spreading wings
+    "movement_spreading_wings": {
+        "gate_actions": ["Spreading wings"],
+        "region": "actor",
+        "prompts": ["a bird with wings folded",
+                    "a bird spreading or extending its wings",
+                    "a bird flying continuously"],
+        "fire_if": "a bird spreading or extending its wings",
+        "use": "Wing spread; display, drying, or pre-flight behavior.",
+    },
+
+    # CSV line 115: Movement, Squatting
+    "movement_squatting": {
+        "gate_actions": ["Squatting"],
+        "region": "actor",
+        "prompts": ["an animal standing fully upright",
+                    "an animal squatting or crouching low",
+                    "an animal lying down completely"],
+        "fire_if": "an animal squatting or crouching low",
+        "use": "Low posture; may indicate fear, readiness to move, or normal rest.",
+    },
+
+    # CSV line 116: Movement, Standing
+    "movement_standing": {
+        "gate_actions": ["Standing"],
+        "region": "actor",
+        "prompts": ["an animal lying or sitting",
+                    "an animal standing on its legs",
+                    "an animal suspended or hanging"],
+        "fire_if": "an animal standing on its legs",
+        "use": "Core posture; essential for time-budget and locomotion analysis.",
+    },
+
+    # CSV line 117: Defensive, Standing in alert
+    "defensive_standing_in_alert": {
+        "gate_actions": ["Standing in alert"],
+        "region": "actor",
+        "prompts": ["an animal standing relaxed",
+                    "an animal standing in a high-alert posture",
+                    "an animal lying down"],
+        "fire_if": "an animal standing in a high-alert posture",
+        "use": "Vigilant state; early warning of perceived threats.",
+    },
+
+    # CSV line 118: General, Startled
+    "general_startled": {
+        "gate_actions": ["Startled"],
+        "region": "actor",
+        "prompts": ["an animal calm and relaxed",
+                    "an animal startled with sudden movement or expression",
+                    "an animal in prolonged distress rather than brief startle"],
+        "fire_if": "an animal startled with sudden movement or expression",
+        "use": "Acute reaction to sudden stimulus; useful for event detection.",
+    },
+
+    # CSV line 119: General, Stinging
+    "general_stinging": {
+        "gate_actions": ["Stinging"],
+        "region": "actor",
+        "prompts": ["an insect or animal near another without contact",
+                    "an insect or animal actively stinging another",
+                    "no stinging behavior visible"],
+        "fire_if": "an insect or animal actively stinging another",
+        "use": "Pain-inducing contact behavior; niche but relevant for some contexts.",
+    },
+
+    # CSV line 120: Defensive, Struggling
+    "defensive_struggling": {
+        "gate_actions": ["Struggling"],
+        "region": "actor",
+        "prompts": ["an animal calm and restrained or free",
+                    "an animal struggling against restraint or entanglement",
+                    "an animal moving normally without struggle"],
+        "fire_if": "an animal struggling against restraint or entanglement",
+        "use": "High welfare concern; indicates distress, restraint, or entrapment.",
+    },
+
+    # CSV line 121: Movement, Surfacing
+    "movement_surfacing": {
+        "gate_actions": ["Surfacing"],
+        "region": "actor",
+        "prompts": ["an aquatic animal underwater",
+                    "an aquatic animal surfacing from underwater",
+                    "an aquatic animal at surface not surfacing"],
+        "fire_if": "an aquatic animal surfacing from underwater",
+        "use": "Vertical movement in water; complements Diving and Sinking.",
+    },
+
+    # CSV line 122: Movement, Swaying
+    "movement_swaying": {
+        "gate_actions": ["Swaying"],
+        "region": "actor",
+        "prompts": ["an animal standing still without sway",
+                    "an animal swaying its body or head rhythmically",
+                    "an animal walking without sway"],
+        "fire_if": "an animal swaying its body or head rhythmically",
+        "use": "Stereotypy or calm motion; can indicate stress or relaxed rocking.",
+    },
+
+    # CSV line 123: Movement, Swimming
+    "movement_swimming": {
+        "gate_actions": ["Swimming"],
+        "region": "actor",
+        "prompts": ["an animal out of water",
+                    "an animal swimming in water",
+                    "an animal floating passively"],
+        "fire_if": "an animal swimming in water",
+        "use": "Core aquatic locomotion; crucial for fish and waterfowl monitoring.",
+    },
+
+    # CSV line 124: Social, Swimming in circles
+    "social_swimming_in_circles": {
+        "gate_actions": ["Swimming in circles"],
+        "region": "actor",
+        "prompts": ["a fish or aquatic animal swimming straight",
+                    "a fish or aquatic animal swimming repeatedly in circles",
+                    "an aquatic animal stationary"],
+        "fire_if": "a fish or aquatic animal swimming repeatedly in circles",
+        "use": "Abnormal or stereotyped swimming; welfare/health indicator for fish.",
+    },
+
+    # CSV line 125: Movement, Swinging
+    "movement_swinging": {
+        "gate_actions": ["Swinging"],
+        "region": "actor",
+        "prompts": ["an animal stationary on a branch or object",
+                    "an animal swinging its body or hanging and swinging",
+                    "an animal walking"],
+        "fire_if": "an animal swinging its body or hanging and swinging",
+        "use": "Arboreal and play behavior; relevant for primates and enrichment.",
+    },
+
+    # CSV line 126: General, Tail swishing
+    "general_tail_swishing": {
+        "gate_actions": ["Tail swishing"],
+        "region": "actor",
+        "prompts": ["an animal with tail still",
+                    "an animal swishing its tail repeatedly",
+                    "an animal wagging tail gently"],
+        "fire_if": "an animal swishing its tail repeatedly",
+        "use": "Tail movement; may indicate irritation, communication, or insect defence.",
+    },
+
+    # CSV line 127: Prey, Trapped
+    "prey_trapped": {
+        "gate_actions": ["Trapped"],
+        "region": "actor",
+        "prompts": ["an animal free to move",
+                    "an animal visibly trapped or unable to escape",
+                    "an animal in a normal enclosure without trap"],
+        "fire_if": "an animal visibly trapped or unable to escape",
+        "use": "Critical welfare/safety event; high-priority alert.",
+    },
+
+    # CSV line 128: Movement, Turning around
+    "movement_turning_around": {
+        "gate_actions": ["Turning around"],
+        "region": "actor",
+        "prompts": ["an animal moving straight",
+                    "an animal turning around or reversing direction",
+                    "an animal stationary"],
+        "fire_if": "an animal turning around or reversing direction",
+        "use": "Orientation change; basic locomotion refinement.",
+    },
+
+    # CSV line 129: Life cycle, Undergoing chrysalis
+    "life_cycle_undergoing_chrysalis": {
+        "gate_actions": ["Undergoing chrysalis"],
+        "region": "actor",
+        "prompts": ["no chrysalis visible",
+                    "an insect in chrysalis or pupal stage",
+                    "an adult insect emerged"],
+        "fire_if": "an insect in chrysalis or pupal stage",
+        "use": "Metamorphosis stage; niche but consistent with insect life cycles.",
+    },
+
+    # CSV line 130: Movement, Unmounting
+    "movement_unmounting": {
+        "gate_actions": ["Unmounting"],
+        "region": "actor",
+        "prompts": ["an animal mounted on another",
+                    "an animal dismounting or unmounting from another",
+                    "an animal alone"],
+        "fire_if": "an animal dismounting or unmounting from another",
+        "use": "End of mounting; complements copulatory mounting and dominance mounting.",
+    },
+
+    # CSV line 131: Movement, Unrolling
+    "movement_unrolling": {
+        "gate_actions": ["Unrolling"],
+        "region": "actor",
+        "prompts": ["an animal in a rolled-up posture",
+                    "an animal unrolling from a curled position",
+                    "an animal straight without rolling"],
+        "fire_if": "an animal unrolling from a curled position",
+        "use": "Postural change; relevant for animals that roll defensively (e.g. hedgehogs).",
+    },
+
+    # CSV line 132: Maintenance, Urinating
+    "maintenance_urinating": {
+        "gate_actions": ["Urinating"],
+        "region": "actor",
+        "prompts": ["an animal near urine but not urinating",
+                    "an animal actively urinating",
+                    "no urine or urination visible"],
+        "fire_if": "an animal actively urinating",
+        "use": "Elimination; important for housetraining and health monitoring.",
+    },
+
+    # CSV line 133: Movement, Walking
+    "movement_walking": {
+        "gate_actions": ["Walking"],
+        "region": "actor",
+        "prompts": ["an animal standing still",
+                    "an animal walking at a moderate pace",
+                    "an animal running"],
+        "fire_if": "an animal walking at a moderate pace",
+        "use": "Base locomotion category; central for activity classification.",
+    },
+
+    # CSV line 134: Movement, Walking on water
+    "movement_walking_on_water": {
+        "gate_actions": ["Walking on water"],
+        "region": "actor",
+        "prompts": ["an animal swimming or floating",
+                    "an animal appearing to walk on water surface",
+                    "an animal out of water"],
+        "fire_if": "an animal appearing to walk on water surface",
+        "use": "Specialized locomotion; rare but biologically valid.",
+    },
+
+    # CSV line 135: Maintenance, Washing
+    "maintenance_washing": {
+        "gate_actions": ["Washing"],
+        "region": "actor",
+        "prompts": ["an animal dry and not washing",
+                    "an animal washing its body in water or with grooming behavior",
+                    "an animal being washed by a human"],
+        "fire_if": ["an animal washing its body in water or with grooming behavior",
+                    "an animal being washed by a human"],
+        "use": "Cleaning behavior; relevant for welfare and owner interactions.",
+    },
+
+    # CSV line 136: Communication, Waving
+    "communication_waving": {
+        "gate_actions": ["Waving"],
+        "region": "actor",
+        "prompts": ["an animal with limbs or tail still",
+                    "an animal waving a limb, tail, or similar as signal",
+                    "an animal moving limbs randomly without wave-like gesture"],
+        "fire_if": "an animal waving a limb, tail, or similar as signal",
+        "use": "Visual communication gesture; niche but very engaging for pet UX.",
+    },
+
+    # CSV line 137: Aggressive, Wrapping itself around prey
+    "aggressive_wrapping_itself_around_prey": {
+        "gate_actions": ["Wrapping itself around prey"],
+        "region": "actor",
+        "prompts": ["a snake near prey but not wrapping",
+                    "a snake wrapping its body around prey",
+                    "a snake coiled without prey"],
+        "fire_if": "a snake wrapping its body around prey",
+        "use": "Constriction predation; critical for exotic reptile monitoring.",
+    },
+
+    # CSV line 138: Aggressive, Wrapping prey
+    "aggressive_wrapping_prey": {
+        "gate_actions": ["Wrapping prey"],
+        "region": "actor",
+        "prompts": ["an animal near prey without wrapping",
+                    "an animal wrapping prey with body or limbs",
+                    "an animal manipulating non-prey objects"],
+        "fire_if": "an animal wrapping prey with body or limbs",
+        "use": "Prey capture/containment; overlaps with constriction and predation behaviors.",
+    },
+
+    # CSV line 139: Resting, Yawning
+    "resting_yawning": {
+        "gate_actions": ["Yawning"],
+        "region": "actor",
+        "prompts": ["an animal with mouth closed",
+                    "an animal yawning with wide-open mouth",
+                    "an animal vocalizing with open mouth"],
+        "fire_if": "an animal yawning with wide-open mouth",
+        "use": "Tiredness or social signal; useful for fatigue and stress context.",
+    },
+
+    # ==================================================================
+    # H) DOG-SPECIFIC BEHAVIOR
+    # ==================================================================
+    "dog_play_bow": {
+        "gate_actions": ["Playing"],
+        "region": "actor",
+        "prompts": ["a dog standing normally",
+                    "a dog in a play-bow posture with front legs lowered and rear up",
+                    "a dog in an aggressive forward-leaning posture"],
+        "fire_if": "a dog in a play-bow posture with front legs lowered and rear up",
+        "use": "Marks friendly play vs aggression for dogs; high UX value for pet owners.",
+    },
+    "dog_resource_guarding": {
+        "gate_actions": ["Eating", "Sharing food", "Disturbing another animal"],
+        "region": "actor",
+        "prompts": ["a dog eating calmly alone",
+                    "a dog stiff, tense, guarding food or toys from others",
+                    "dogs peacefully sharing food or toys"],
+        "fire_if": "a dog stiff, tense, guarding food or toys from others",
+        "use": "Resource guarding; important for behavior alerts and training support.",
+    },
+    "dog_stress_signals": {
+        "gate_actions": ["Panting", "Yawning", "Keeping still"],
+        "region": "actor",
+        "prompts": ["a dog relaxed with normal expression",
+                    "a dog showing subtle stress signals (lip licking, yawning, turning away)",
+                    "a dog overtly aggressive"],
+        "fire_if": "a dog showing subtle stress signals (lip licking, yawning, turning away)",
+        "use": "Early stress indicator for dogs; useful for welfare and training.",
+    },
+    "dog_tail_language": {
+        "gate_actions": ["Tail swishing"],
+        "region": "actor",
+        "prompts": ["a dog with tail relaxed",
+                    "a dog with tail tucked between legs",
+                    "a dog tail high and stiff or rapidly wagging"],
+        "fire_if": ["a dog with tail tucked between legs",
+                    "a dog tail high and stiff or rapidly wagging"],
+        "use": "Fear vs arousal/enthusiasm; dog-specific emotional state cue.",
+    },
+    "dog_barking_alarm": {
+        "gate_actions": ["Barking"],
+        "region": "actor",
+        "prompts": ["a dog quietly present",
+                    "a dog barking toward a door or window",
+                    "a dog barking during play with humans or dogs"],
+        "fire_if": "a dog barking toward a door or window",
+        "use": "Home security/context tag (door/window) for dog barking.",
+    },
+
+    # ==================================================================
+    # I) CAT-SPECIFIC BEHAVIOR
+    # ==================================================================
+    "cat_kneading": {
+        "gate_actions": ["Manipulating object", "Showing affection"],
+        "region": "actor",
+        "prompts": ["a cat lying or sitting without paw movement",
+                    "a cat kneading with front paws on a soft surface",
+                    "a cat scratching aggressively"],
+        "fire_if": "a cat kneading with front paws on a soft surface",
+        "use": "Comfort/affection behavior; UX feature for cat owners.",
+    },
+    "cat_hiding": {
+        "gate_actions": ["Keeping still", "Immobilized"],
+        "region": "actor",
+        "prompts": ["a cat resting in open areas",
+                    "a cat hiding under furniture or in confined dark spaces",
+                    "no cat visible"],
+        "fire_if": "a cat hiding under furniture or in confined dark spaces",
+        "use": "Stress/illness indicator; cats hide when unwell or fearful.",
+    },
+    "cat_tail_twitching": {
+        "gate_actions": ["Tail swishing"],
+        "region": "actor",
+        "prompts": ["a cat tail relaxed",
+                    "a cat tail twitching or whipping quickly",
+                    "a cat tail gently flicking in mild interest"],
+        "fire_if": "a cat tail twitching or whipping quickly",
+        "use": "Agitation/irritation in cats; useful for behavior context.",
+    },
+    "cat_slow_blink": {
+        "gate_actions": ["Showing affection"],
+        "region": "actor",
+        "prompts": ["a cat staring with wide eyes",
+                    "a cat slow blinking toward a human or another cat",
+                    "a cat with eyes closed sleeping"],
+        "fire_if": "a cat slow blinking toward a human or another cat",
+        "use": "Friendly/relaxed communication; UX signal for bonding.",
+    },
+    "cat_spray_marking": {
+        "gate_actions": ["Urinating"],
+        "region": "actor",
+        "prompts": ["a cat urinating in a normal crouched posture",
+                    "a cat spraying urine vertically on a surface",
+                    "no urination visible"],
+        "fire_if": "a cat spraying urine vertically on a surface",
+        "use": "Territorial marking; important for indoor behavior management.",
+    },
+
+    # ==================================================================
+    # J) CATTLE-SPECIFIC BEHAVIOR
+    # ==================================================================
+    "cattle_ruminating": {
+        "gate_actions": ["Eating", "Keeping still"],
+        "region": "actor",
+        "prompts": ["a cow not chewing",
+                    "a cow chewing cud while resting (ruminating)",
+                    "a cow actively feeding from trough"],
+        "fire_if": "a cow chewing cud while resting (ruminating)",
+        "use": "Ruminant digestive behavior; important welfare and productivity indicator [web:22].",
+    },
+    "cattle_lameness_gait": {
+        "gate_actions": ["Walking", "Running"],
+        "region": "actor",
+        "prompts": ["a cow walking with normal even gait",
+                    "a cow walking with uneven, lame gait",
+                    "a cow standing still"],
+        "fire_if": "a cow walking with uneven, lame gait",
+        "use": "Cattle lameness detection; major welfare and economic impact [web:22].",
+    },
+    "cattle_head_pressing": {
+        "gate_actions": ["Leaning"],
+        "region": "actor",
+        "prompts": ["a cow standing away from walls",
+                    "a cow pressing its head against a wall or object",
+                    "a cow leaning body but not head"],
+        "fire_if": "a cow pressing its head against a wall or object",
+        "use": "Possible neurological or severe illness sign; high-priority health flag.",
+    },
+    "cattle_social_isolation": {
+        "gate_actions": ["Keeping still", "Resting"],
+        "region": "frame",
+        "prompts": ["a cow within close proximity to herd",
+                    "a cow isolated away from herd",
+                    "no herd visible"],
+        "fire_if": "a cow isolated away from herd",
+        "use": "Isolation as illness/stress marker; important in precision livestock farming [web:18].",
+    },
+    "cattle_calving_posture": {
+        "gate_actions": ["Giving birth", "Lying down"],
+        "region": "actor",
+        "prompts": ["a cow standing or lying normally",
+                    "a cow in calving posture in a pen",
+                    "a cow post-calving licking newborn calf"],
+        "fire_if": "a cow in calving posture in a pen",
+        "use": "Calving detection; critical for farm staff alerts and interventions.",
+    },
+
+    # ==================================================================
+    # K) SHEEP / GOAT-SPECIFIC BEHAVIOR
+    # ==================================================================
+    "small_ruminant_head_butting": {
+        "gate_actions": ["Pounding", "Fighting"],
+        "region": "actor",
+        "prompts": ["sheep or goats near each other calmly",
+                    "sheep or goats head-butting each other",
+                    "sheep or goats playing gently without head-butting"],
+        "fire_if": "sheep or goats head-butting each other",
+        "use": "Aggression/dominance; important for group management.",
+    },
+    "small_ruminant_browsing_vs_grazing": {
+        "gate_actions": ["Eating"],
+        "region": "actor",
+        "prompts": ["an animal eating grass close to ground",
+                    "an animal browsing leaves, shrubs or elevated forage",
+                    "an animal standing near forage but not eating"],
+        "fire_if": ["an animal eating grass close to ground",
+                    "an animal browsing leaves, shrubs or elevated forage"],
+        "use": "Differentiates grazing vs browsing; useful for pasture and diet management.",
+    },
+    "small_ruminant_maternal_behavior": {
+        "gate_actions": ["Showing affection", "Giving birth"],
+        "region": "actor",
+        "prompts": ["an ewe or doe away from offspring",
+                    "an ewe or doe licking and tending newborn lamb or kid",
+                    "non-maternal adult near young without care"],
+        "fire_if": "an ewe or doe licking and tending newborn lamb or kid",
+        "use": "Maternal care; important post-birth welfare and survival indicator.",
+    },
+    "small_ruminant_flock_following": {
+        "gate_actions": ["Walking", "Running"],
+        "region": "frame",
+        "prompts": ["single sheep/goat moving away from group",
+                    "sheep/goats moving in coordinated flock",
+                    "animals scattered randomly"],
+        "fire_if": "sheep/goats moving in coordinated flock",
+        "use": "Normal flock movement vs isolation; behavior context and welfare.",
+    },
+    "small_ruminant_kid_lamb_nursing": {
+        "gate_actions": ["Eating", "Showing affection"],
+        "region": "actor",
+        "prompts": ["a lamb or kid away from dam",
+                    "a lamb or kid nursing from dam",
+                    "dam near offspring without nursing"],
+        "fire_if": "a lamb or kid nursing from dam",
+        "use": "Nursing behavior; crucial for neonatal survival and farm alerts.",
+    },
+
+    # ==================================================================
+    # L) PIG-SPECIFIC BEHAVIOR
+    # ==================================================================
+    "pig_rooting": {
+        "gate_actions": ["Digging", "Manipulating object"],
+        "region": "actor",
+        "prompts": ["a pig standing or lying without snout use",
+                    "a pig rooting with snout in soil, bedding, or substrate",
+                    "a pig biting objects instead of rooting"],
+        "fire_if": "a pig rooting with snout in soil, bedding, or substrate",
+        "use": "Species-specific foraging/enrichment behavior; welfare and management relevant.",
+    },
+    "pig_tail_biting": {
+        "gate_actions": ["Pounding", "Disturbing another animal"],
+        "region": "actor",
+        "prompts": ["pigs near each other calmly",
+                    "a pig biting or attacking another pig's tail",
+                    "pigs playing without tail biting"],
+        "fire_if": "a pig biting or attacking another pig's tail",
+        "use": "Serious welfare issue; early detection prevents injuries and losses.",
+    },
+    "pig_bar_biting_stereotypy": {
+        "gate_actions": ["Manipulating object"],
+        "region": "actor",
+        "prompts": ["a pig calmly standing at pen bars",
+                    "a pig repeatedly biting or chewing pen bars",
+                    "a pig simply sniffing bars"],
+        "fire_if": "a pig repeatedly biting or chewing pen bars",
+        "use": "Stereotypic behavior in confined pigs; stress and poor welfare marker.",
+    },
+    "pig_farrowing": {
+        "gate_actions": ["Giving birth"],
+        "region": "actor",
+        "prompts": ["a sow resting normally",
+                    "a sow actively farrowing with piglets present or emerging",
+                    "a non-pregnant sow lying"],
+        "fire_if": "a sow actively farrowing with piglets present or emerging",
+        "use": "Farrowing event; critical for production and surveillance alerts.",
+    },
+    "pig_piling_huddling": {
+        "gate_actions": ["Lying on top", "Resting"],
+        "region": "frame",
+        "prompts": ["pigs lying spaced apart",
+                    "pigs piling/huddling tightly together",
+                    "pigs standing or walking"],
+        "fire_if": "pigs piling/huddling tightly together",
+        "use": "Temperature/stress context; may indicate cold, fear, or social comfort.",
+    },
+
+    # ==================================================================
+    # M) POULTRY-SPECIFIC BEHAVIOR
+    # ==================================================================
+    "poultry_dust_bathing": {
+        "gate_actions": ["Rolling", "Manipulating object"],
+        "region": "actor",
+        "prompts": ["a bird standing or walking on dry substrate",
+                    "a bird rolling and flapping in dust or litter (dust bathing)",
+                    "a bird preening only"],
+        "fire_if": "a bird rolling and flapping in dust or litter (dust bathing)",
+        "use": "Species-specific maintenance behavior; important welfare indicator in poultry.",
+    },
+    "poultry_feather_pecking": {
+        "gate_actions": ["Pecking", "Disturbing another animal"],
+        "region": "actor",
+        "prompts": ["a bird pecking at feed",
+                    "a bird repeatedly pecking feathers of another bird",
+                    "birds calmly near each other without pecking"],
+        "fire_if": "a bird repeatedly pecking feathers of another bird",
+        "use": "Damaging feather pecking; serious welfare and productivity issue.",
+    },
+    "poultry_broodiness": {
+        "gate_actions": ["Laying eggs", "Sitting"],
+        "region": "actor",
+        "prompts": ["a hen walking and feeding normally",
+                    "a hen sitting persistently on nest with eggs",
+                    "empty nest without hen"],
+        "fire_if": "a hen sitting persistently on nest with eggs",
+        "use": "Broody behavior; relevant for reproduction and egg management.",
+    },
+    "poultry_leg_weakness": {
+        "gate_actions": ["Standing", "Walking", "Immobilized"],
+        "region": "actor",
+        "prompts": ["a bird standing and walking normally",
+                    "a bird reluctant to stand, sitting frequently, or unable to walk",
+                    "a bird lying due to rest only"],
+        "fire_if": "a bird reluctant to stand, sitting frequently, or unable to walk",
+        "use": "Leg problems; key welfare and productivity issue in meat birds.",
+    },
+    "poultry_wing_clipping_effect": {
+        "gate_actions": ["Flying", "Spreading wings"],
+        "region": "actor",
+        "prompts": ["a bird flying or jumping to high perches",
+                    "a bird attempting but failing to fly to higher perch",
+                    "a bird walking only"],
+        "fire_if": "a bird attempting but failing to fly to higher perch",
+        "use": "Practical effect of wing clipping; context for management and escape risk.",
+    },
+
+    # ==================================================================
+    # N) HORSE / EQUINE-SPECIFIC BEHAVIOR
+    # ==================================================================
+    "equine_pawing": {
+        "gate_actions": ["Pounding"],
+        "region": "actor",
+        "prompts": ["a horse standing calmly",
+                    "a horse pawing the ground repeatedly with a foreleg",
+                    "a horse moving normally without pawing"],
+        "fire_if": "a horse pawing the ground repeatedly with a foreleg",
+        "use": "Impatience, discomfort, or stereotypy; early sign of stress.",
+    },
+    "equine_weaving": {
+        "gate_actions": ["Swaying"],
+        "region": "actor",
+        "prompts": ["a horse standing still",
+                    "a horse weaving side-to-side at the stall door",
+                    "a horse walking normally"],
+        "fire_if": "a horse weaving side-to-side at the stall door",
+        "use": "Stall stereotypy; recognized welfare problem in stabled horses.",
+    },
+    "equine_cribbing": {
+        "gate_actions": ["Manipulating object"],
+        "region": "actor",
+        "prompts": ["a horse near stable structures calmly",
+                    "a horse grasping stable edge and gulping air (cribbing)",
+                    "a horse biting structures once without repetitive pattern"],
+        "fire_if": "a horse grasping stable edge and gulping air (cribbing)",
+        "use": "Classic stereotypic behavior; welfare monitoring for equine management.",
+    },
+    "equine_colic_posture": {
+        "gate_actions": ["Rolling", "Lying on its side", "Struggling"],
+        "region": "actor",
+        "prompts": ["a horse lying or standing normally",
+                    "a horse repeatedly looking at flank, pawing, rolling, or getting up/down",
+                    "a horse resting calmly"],
+        "fire_if": "a horse repeatedly looking at flank, pawing, rolling, or getting up/down",
+        "use": "Colic-like signs; high-priority health alert for horses.",
+    },
+    "equine_lameness_gait": {
+        "gate_actions": ["Walking", "Running"],
+        "region": "actor",
+        "prompts": ["a horse walking with symmetrical gait",
+                    "a horse walking with head-nodding or uneven stride (lameness)",
+                    "a horse standing still"],
+        "fire_if": "a horse walking with head-nodding or uneven stride (lameness)",
+        "use": "Equine lameness detection; major welfare/performance factor.",
+    },
+
+    # ==================================================================
+    # O) GENERIC WELFARE FLAGS (SPECIES-AWARE)
+    # ==================================================================
+    "welfare_lameness_any_species": {
+        "gate_actions": ["Walking", "Running"],
+        "region": "actor",
+        "prompts": ["an animal walking with normal even gait",
+                    "an animal walking with visible limp or asymmetry",
+                    "an animal not walking"],
+        "fire_if": "an animal walking with visible limp or asymmetry",
+        "use": "Species-agnostic lameness flag tied to movement; high welfare priority [web:22].",
+    },
+    "welfare_social_isolation_any_species": {
+        "gate_actions": ["Standing", "Resting", "Keeping still"],
+        "region": "frame",
+        "prompts": ["animal within group",
+                    "animal standing or resting alone far from conspecifics",
+                    "no other animals present at all"],
+        "fire_if": "animal standing or resting alone far from conspecifics",
+        "use": "General social isolation indicator; important across herd/flock species [web:18].",
+    },
+    "welfare_unusual_rest_posture_any_species": {
+        "gate_actions": ["Lying on its side", "Immobilized", "Struggling"],
+        "region": "actor",
+        "prompts": ["an animal resting in usual posture",
+                    "an animal in unusual twisted or distressed rest posture",
+                    "an animal actively struggling to stand"],
+        "fire_if": ["an animal in unusual twisted or distressed rest posture",
+                    "an animal actively struggling to stand"],
+        "use": "Abnormal rest; generic pain/illness/discomfort flag.",
+    },
+    "welfare_abnormal_repetition_any_species": {
+        "gate_actions": ["Swinging", "Swaying", "Walking", "Swimming in circles"],
+        "region": "actor",
+        "prompts": ["an animal moving with varied behavior",
+                    "an animal repeating the same movement pattern over and over",
+                    "an animal immobile"],
+        "fire_if": "an animal repeating the same movement pattern over and over",
+        "use": "Generic stereotypy indicator; combines with species-specific rules for welfare.",
+    },
+    "welfare_acute_distress_any_species": {
+        "gate_actions": ["Gasping for air", "Struggling", "Startled"],
+        "region": "actor",
+        "prompts": ["an animal calm and breathing normally",
+                    "an animal showing acute distress (severe gasping, thrashing)",
+                    "an animal mildly startled only"],
+        "fire_if": "an animal showing acute distress (severe gasping, thrashing)",
+        "use": "Cross-species acute distress alarm; top-priority alert.",
+    },
+
+    # ==================================================================
+    # P) FISH-SPECIFIC BEHAVIOR (AQUARIUM / AQUACULTURE)
+    # ==================================================================
+    "fish_shoaling_schooling": {
+        "gate_actions": ["Swimming"],
+        "region": "frame",
+        "prompts": ["fish scattered and alone",
+                    "fish swimming together in a cohesive shoal or school",
+                    "no fish present"],
+        "fire_if": "fish swimming together in a cohesive shoal or school",
+        "use": "Normal social grouping; baseline context for welfare and behavior.",
+    },
+    "fish_school_fragmentation": {
+        "gate_actions": ["Swimming", "Keeping still"],
+        "region": "frame",
+        "prompts": ["fish in cohesive school",
+                    "one or a few fish separated far from school",
+                    "random distribution with no schooling species"],
+        "fire_if": "one or a few fish separated far from school",
+        "use": "Social isolation; potential illness or stress indicator in schooling species.",
+    },
+    "fish_surface_gasping": {
+        "gate_actions": ["Gasping for air", "Surfacing"],
+        "region": "actor",
+        "prompts": ["fish swimming at various depths normally",
+                    "fish repeatedly gasping at the water surface",
+                    "fish briefly surfacing without gasping"],
+        "fire_if": "fish repeatedly gasping at the water surface",
+        "use": "Strong oxygen/respiratory distress signal; critical welfare alert [web:28][web:32].",
+    },
+    "fish_bottom_sitting": {
+        "gate_actions": ["Keeping still", "Resting"],
+        "region": "actor",
+        "prompts": ["fish swimming midwater",
+                    "fish sitting motionless on tank bottom",
+                    "bottom-dwelling species moving normally on substrate"],
+        "fire_if": "fish sitting motionless on tank bottom",
+        "use": "Possible lethargy or illness; context-specific for species.",
+    },
+    "fish_side_sinking_loss_balance": {
+        "gate_actions": ["Sinking", "Swimming in circles"],
+        "region": "actor",
+        "prompts": ["fish swimming upright",
+                    "fish swimming or sinking on its side with loss of balance",
+                    "fish lying on side but clearly dead"],
+        "fire_if": "fish swimming or sinking on its side with loss of balance",
+        "use": "Buoyancy/balance disorder; serious health issue and strong selling point.",
+    },
+    "fish_fin_clamping": {
+        "gate_actions": ["Keeping still", "Swimming"],
+        "region": "actor",
+        "prompts": ["fish with fins extended normally",
+                    "fish with fins clamped closely to body",
+                    "fish briefly folding fins during fast movement"],
+        "fire_if": "fish with fins clamped closely to body",
+        "use": "Stress or disease indicator; common aquarium welfare metric [web:28].",
+    },
+    "fish_flashing_rubbing": {
+        "gate_actions": ["Rolling", "Spreading"],
+        "region": "actor",
+        "prompts": ["fish swimming without contact to surfaces",
+                    "fish repeatedly rubbing or flashing against objects or substrate",
+                    "fish interacting once with objects without repetition"],
+        "fire_if": "fish repeatedly rubbing or flashing against objects or substrate",
+        "use": "Parasite/skin irritation indicator; high-value health flag.",
+    },
+    "fish_erratic_swimming": {
+        "gate_actions": ["Swimming", "Swimming in circles"],
+        "region": "actor",
+        "prompts": ["fish swimming in smooth, steady paths",
+                    "fish swimming erratically with sudden turns or darting",
+                    "fish in normal fast schooling without erratic patterns"],
+        "fire_if": "fish swimming erratically with sudden turns or darting",
+        "use": "Stress, predator presence, or health problem; strong context signal.",
+    },
+    "fish_vertical_dashing_leaping": {
+        "gate_actions": ["Jumping", "Surfacing"],
+        "region": "actor",
+        "prompts": ["fish swimming below surface",
+                    "fish repeatedly dashing vertically and leaping at surface or out",
+                    "rare single leap only"],
+        "fire_if": "fish repeatedly dashing vertically and leaping at surface or out",
+        "use": "Escape attempt, severe stress or poor tank cover; safety selling point.",
+    },
+    "fish_mouth_gaping_rest": {
+        "gate_actions": ["Panting", "Gasping for air"],
+        "region": "actor",
+        "prompts": ["fish with mouth closed or normal opening",
+                    "fish holding mouth constantly wide open at rest",
+                    "fish opening mouth only while feeding"],
+        "fire_if": "fish holding mouth constantly wide open at rest",
+        "use": "Respiratory or jaw problem indicator; health monitoring feature.",
+    },
+    "fish_substrate_digging": {
+        "gate_actions": ["Digging", "Manipulating object"],
+        "region": "actor",
+        "prompts": ["fish swimming above substrate",
+                    "fish digging or moving substrate with mouth or fins",
+                    "fish briefly touching substrate without digging"],
+        "fire_if": "fish digging or moving substrate with mouth or fins",
+        "use": "Species-typical behavior for some cichlids/catfish; context for normal vs excessive.",
+    },
+    "fish_territorial_chasing": {
+        "gate_actions": ["Chasing", "Fighting"],
+        "region": "actor",
+        "prompts": ["fish swimming near each other calmly",
+                    "a fish repeatedly chasing another away from area",
+                    "two fish engaged in full fight with biting"],
+        "fire_if": "a fish repeatedly chasing another away from area",
+        "use": "Territorial aggression; useful for stocking and layout decisions.",
+    },
+    "fish_pair_bonding_display": {
+        "gate_actions": ["Performing sexual display", "Showing affection"],
+        "region": "actor",
+        "prompts": ["fish near each other without special interaction",
+                    "a pair of fish performing synchronized courtship display",
+                    "group courtship involving multiple fish"],
+        "fire_if": "a pair of fish performing synchronized courtship display",
+        "use": "Pair formation; useful for breeding management.",
+    },
+    "fish_bubble_nest_building": {
+        "gate_actions": ["Building nest"],
+        "region": "actor",
+        "prompts": ["no bubble structures at surface",
+                    "a fish building and tending a bubble nest at water surface",
+                    "random bubbles from aeration only"],
+        "fire_if": "a fish building and tending a bubble nest at water surface",
+        "use": "Labyrinth fish reproduction; key event for breeding alerts.",
+    },
+    "fish_egg_guarding": {
+        "gate_actions": ["Standing in alert", "Displaying defensive pose"],
+        "region": "actor",
+        "prompts": ["fish away from eggs or fry",
+                    "fish hovering over eggs/fry in defensive posture",
+                    "fish near eggs/fry without clear guarding"],
+        "fire_if": "fish hovering over eggs/fry in defensive posture",
+        "use": "Parental care; important for breeding and survival monitoring.",
+    },
+    "fish_fry_schooling_near_parent": {
+        "gate_actions": ["Swimming in circles", "Playing"],
+        "region": "frame",
+        "prompts": ["no fry visible",
+                    "fry schooling closely near parent fish",
+                    "fry scattered far from parents"],
+        "fire_if": "fry schooling closely near parent fish",
+        "use": "Parental care and early-life survival; breeding success context.",
+    },
+    "fish_low_activity_abnormal": {
+        "gate_actions": ["Keeping still", "Resting"],
+        "region": "frame",
+        "prompts": ["fish showing normal activity level",
+                    "most fish unusually still with low movement",
+                    "no fish in tank"],
+        "fire_if": "most fish unusually still with low movement",
+        "use": "Low activity periods; potential temperature, oxygen, or illness problem.",
+    },
+    "fish_high_activity_abnormal": {
+        "gate_actions": ["Running", "Swimming"],
+        "region": "frame",
+        "prompts": ["fish swimming at normal speed",
+                    "fish showing hyperactive swimming with constant fast motion",
+                    "short feeding burst only"],
+        "fire_if": "fish showing hyperactive swimming with constant fast motion",
+        "use": "Stress, alarm, or toxicity; strong welfare context.",
+    },
+    "fish_abnormal_depth_use": {
+        "gate_actions": ["Swimming", "Sinking", "Surfacing"],
+        "region": "frame",
+        "prompts": ["fish distributed across depths as usual for species",
+                    "fish all crowded at surface or at bottom",
+                    "fish with normal stratified distribution"],
+        "fire_if": "fish all crowded at surface or at bottom",
+        "use": "Depth anomalies; oxygen, temperature, or environment problem indicator.",
+
+    # ==================================================================
+    # Q) LIZARD / REPTILE-SPECIFIC BEHAVIOR
+    # ==================================================================
+    "lizard_basking": {
+        "gate_actions": ["Standing", "Lying down", "Keeping still"],
+        "region": "actor",
+        "prompts": ["a lizard off heat source",
+                    "a lizard resting under heat lamp or basking spot",
+                    "a lizard hiding away from any basking spot"],
+        "fire_if": "a lizard resting under heat lamp or basking spot",
+        "use": "Thermoregulation; critical welfare behavior in reptiles [web:29].",
+    },
+    "lizard_lack_of_basking": {
+        "gate_actions": ["Standing", "Keeping still"],
+        "region": "frame",
+        "prompts": ["lizards rotating between basking and cooler areas",
+                    "a lizard never using basking spot over extended period",
+                    "no basking spot present"],
+        "fire_if": "a lizard never using basking spot over extended period",
+        "use": "Possible illness or poor enclosure setup; important husbandry flag.",
+    },
+    "lizard_hiding_use": {
+        "gate_actions": ["Entering its nest", "Sleeping in its nest"],
+        "region": "actor",
+        "prompts": ["a lizard resting in open view",
+                    "a lizard using a hide or cave shelter",
+                    "no hide space available"],
+        "fire_if": "a lizard using a hide or cave shelter",
+        "use": "Shelter use; normal need for privacy but overuse can suggest stress [web:25].",
+    },
+    "lizard_constant_hiding": {
+        "gate_actions": ["Keeping still", "Sleeping"],
+        "region": "frame",
+        "prompts": ["a lizard alternating between hide and open areas",
+                    "a lizard almost never leaving hide during active phase",
+                    "a lizard active in open areas"],
+        "fire_if": "a lizard almost never leaving hide during active phase",
+        "use": "Excess hiding; potential stress, illness, or poor lighting/temperature.",
+    },
+    "lizard_tongue_flicking": {
+        "gate_actions": ["Sensing"],
+        "region": "actor",
+        "prompts": ["a lizard not flicking tongue",
+                    "a lizard repeatedly flicking tongue to sample environment",
+                    "a lizard opening mouth widely"],
+        "fire_if": "a lizard repeatedly flicking tongue to sample environment",
+        "use": "Chemosensory exploration; normal behavior context.",
+    },
+    "lizard_head_bobbing_display": {
+        "gate_actions": ["Performing sexual display", "Displaying defensive pose"],
+        "region": "actor",
+        "prompts": ["a lizard holding head still",
+                    "a lizard performing repeated head bobbing display",
+                    "a lizard moving head slowly while walking"],
+        "fire_if": "a lizard performing repeated head bobbing display",
+        "use": "Territorial or sexual display; biologically important for many lizard species.",
+    },
+    "lizard_push_up_display": {
+        "gate_actions": ["Doing push up"],
+        "region": "actor",
+        "prompts": ["a lizard standing still",
+                    "a lizard performing push-up display with body up/down",
+                    "a lizard simply moving forward or backward"],
+        "fire_if": "a lizard performing push-up display with body up/down",
+        "use": "Species-typical display; strongly linked to territory and courtship.",
+    },
+    "lizard_dewlap_extension": {
+        "gate_actions": ["Puffing its throat"],
+        "region": "actor",
+        "prompts": ["a lizard with dewlap retracted",
+                    "a lizard extending colorful dewlap in display",
+                    "a lizard opening mouth without dewlap use"],
+        "fire_if": "a lizard extending colorful dewlap in display",
+        "use": "Visual display; signals dominance, territory, or courtship.",
+    },
+    "lizard_tail_waving": {
+        "gate_actions": ["Tail swishing"],
+        "region": "actor",
+        "prompts": ["a lizard with tail still",
+                    "a lizard slowly waving tail as signal",
+                    "a lizard rapidly thrashing tail"],
+        "fire_if": ["a lizard slowly waving tail as signal",
+                    "a lizard rapidly thrashing tail"],
+        "use": "Communication or agitation; species-specific context cue.",
+    },
+    "lizard_glass_surfing": {
+        "gate_actions": ["Climbing", "Running"],
+        "region": "actor",
+        "prompts": ["a lizard resting or moving near ground",
+                    "a lizard repeatedly climbing and running against glass walls",
+                    "a lizard climbing natural structures"],
+        "fire_if": "a lizard repeatedly climbing and running against glass walls",
+        "use": "Stress/frustration in captive reptiles; strong husbandry signal [web:26][web:29].",
+    },
+    "lizard_shedding_visible": {
+        "gate_actions": ["Molting", "Washing"],
+        "region": "actor",
+        "prompts": ["a lizard with normal intact skin",
+                    "a lizard with visible loose or peeling skin during shed",
+                    "a lizard with retained shed stuck on body"],
+        "fire_if": "a lizard with visible loose or peeling skin during shed",
+        "use": "Normal shedding phase; welfare context for humidity and care.",
+    },
+    "lizard_retained_shed_problem": {
+        "gate_actions": ["Molting"],
+        "region": "actor",
+        "prompts": ["a lizard with complete shed removed",
+                    "a lizard with retained shed on toes, tail, or eyes",
+                    "a lizard not in shedding period"],
+        "fire_if": "a lizard with retained shed on toes, tail, or eyes",
+        "use": "Poor shedding; welfare issue linked to humidity and care.",
+    },
+    "lizard_tail_autotomy_event": {
+        "gate_actions": ["Playing dead", "Disturbing another animal"],
+        "region": "actor",
+        "prompts": ["a lizard with intact tail",
+                    "a lizard with tail detached and wriggling separately",
+                    "a lizard with healed missing tail"],
+        "fire_if": "a lizard with tail detached and wriggling separately",
+        "use": "Self-defence tail autotomy; critical event for stress/handling.",
+    },
+    "lizard_flattening_body_camouflage": {
+        "gate_actions": ["Camouflaging", "Spreading"],
+        "region": "actor",
+        "prompts": ["a lizard in normal body posture",
+                    "a lizard flattening body against surface as camouflage",
+                    "a lizard puffing body for display"],
+        "fire_if": "a lizard flattening body against surface as camouflage",
+        "use": "Camouflage posture; species-typical defensive behavior.",
+    },
+    "lizard_open_mouth_threat": {
+        "gate_actions": ["Displaying defensive pose", "Spitting venom"],
+        "region": "actor",
+        "prompts": ["a lizard with mouth closed",
+                    "a lizard holding mouth open in threat posture",
+                    "a lizard briefly opening mouth during feeding only"],
+        "fire_if": "a lizard holding mouth open in threat posture",
+        "use": "Threat/defensive signal; important warning for handling.",
+    },
+    "lizard_climbing_behavior": {
+        "gate_actions": ["Climbing", "Hanging"],
+        "region": "actor",
+        "prompts": ["a lizard on ground substrate",
+                    "a lizard climbing on branches, rocks, or enclosure walls",
+                    "a lizard hanging from overhead structure"],
+        "fire_if": ["a lizard climbing on branches, rocks, or enclosure walls",
+                    "a lizard hanging from overhead structure"],
+        "use": "Arboreal movement; species-typical environmental use.",
+    },
+    "lizard_burrowing_behavior": {
+        "gate_actions": ["Digging"],
+        "region": "actor",
+        "prompts": ["a lizard on surface not digging",
+                    "a lizard digging and entering burrow",
+                    "substrate with burrow but no lizard visible"],
+        "fire_if": "a lizard digging and entering burrow",
+        "use": "Burrowing; important for species requiring deep substrate.",
+    },
+    "lizard_feeding_strike": {
+        "gate_actions": ["Preying", "Eating"],
+        "region": "actor",
+        "prompts": ["a lizard near prey or food but inactive",
+                    "a lizard performing rapid feeding strike at prey",
+                    "a lizard eating already-captured prey calmly"],
+        "fire_if": "a lizard performing rapid feeding strike at prey",
+        "use": "Feeding event; context for hunting success and activity.",
+    },
+    "lizard_abnormal_lethargy": {
+        "gate_actions": ["Keeping still", "Resting"],
+        "region": "actor",
+        "prompts": ["a lizard active during its normal active phase",
+                    "a lizard unusually lethargic with little movement when expected active",
+                    "a lizard sleeping during its normal rest phase"],
+        "fire_if": "a lizard unusually lethargic with little movement when expected active",
+        "use": "General illness or poor husbandry suspicion; strong welfare flag.",
+    },
+
+    # ==================================================================
+    # R) CROSS-SPECIES AQUATIC/REPTILE WELFARE FLAGS
+    # ==================================================================
+    "welfare_poor_environment_enclosure": {
+        "gate_actions": ["Exploring", "Swinging", "Glass surfing"],
+        "region": "frame",
+        "prompts": ["animals using enclosure features normally",
+                    "animals repeatedly interacting with barriers or showing escape behavior",
+                    "animals mostly resting calmly"],
+        "fire_if": "animals repeatedly interacting with barriers or showing escape behavior",
+        "use": "Generic sign of poor enclosure/environment design; strong husbandry selling point [web:26][web:31].",
+    },
+    "welfare_abnormal_grouping_aquatic": {
+        "gate_actions": ["Swimming", "Keeping still"],
+        "region": "frame",
+        "prompts": ["fish distributed in species-typical pattern",
+                    "fish clustered abnormally in one area (corner, surface, bottom)",
+                    "fish scattered randomly in non-shoaling species"],
+        "fire_if": "fish clustered abnormally in one area (corner, surface, bottom)",
+        "use": "Non-typical grouping; early sign of environmental stress [web:30][web:32].",
+    },
+    "welfare_abnormal_color_change_reptile": {
+        "gate_actions": ["Camouflaging", "Spreading"],
+        "region": "actor",
+        "prompts": ["a reptile with normal coloration",
+                    "a reptile showing pronounced color darkening or paling",
+                    "color change only during known breeding display"],
+        "fire_if": "a reptile showing pronounced color darkening or paling",
+        "use": "Potential stress, thermoregulation or disease; reptile-specific welfare cue.",
+    },
+    "welfare_inadequate_hide_use_reptile": {
+        "gate_actions": ["Entering its nest", "Sleeping in its nest"],
+        "region": "frame",
+        "prompts": ["reptiles alternating between hides and open areas",
+                    "no hides present or occupied while animals show stress behaviors",
+                    "reptiles fully confined to hides without opportunity to emerge"],
+        "fire_if": ["no hides present or occupied while animals show stress behaviors",
+                    "reptiles fully confined to hides without opportunity to emerge"],
+        "use": "Hide availability/usage issue; core reptile welfare requirement [web:25][web:29].",
+    },
+    "welfare_abnormal_respiration_fish": {
+        "gate_actions": ["Gasping for air", "Panting"],
+        "region": "actor",
+        "prompts": ["fish ventilating gills at normal rate",
+                    "fish ventilating gills extremely rapidly or gasping",
+                    "fish barely moving gills at all"],
+        "fire_if": "fish ventilating gills extremely rapidly or gasping",
+        "use": "Respiratory stress; key indicator of oxygen/poison problems in fish [web:28][web:32].",
+    },
+
+    # ==================================================================
+    # S) PRIMATE-SPECIFIC BEHAVIOR (MONKEYS / APES)
+    # ==================================================================
+    "primate_grooming_social": {
+        "gate_actions": ["Performing allo-grooming", "Showing affection"],
+        "region": "actor",
+        "prompts": ["a primate alone grooming itself",
+                    "a primate grooming another (social grooming)",
+                    "primates near each other without grooming"],
+        "fire_if": "a primate grooming another (social grooming)",
+        "use": "Social bonding and hierarchy; classic welfare and social indicator.",
+    },
+    "primate_play_chasing_wrestling": {
+        "gate_actions": ["Playing"],
+        "region": "actor",
+        "prompts": ["primates resting or foraging",
+                    "primates engaged in play chasing or wrestling",
+                    "primates fighting aggressively"],
+        "fire_if": "primates engaged in play chasing or wrestling",
+        "use": "Positive social interaction; enrichment and welfare metric.",
+    },
+    "primate_aggressive_fight": {
+        "gate_actions": ["Fighting", "Attacking"],
+        "region": "actor",
+        "prompts": ["primates near each other calmly",
+                    "primates exchanging blows and bites in aggression",
+                    "primates playing with mild contact only"],
+        "fire_if": "primates exchanging blows and bites in aggression",
+        "use": "Conflict detection; important for group stability and safety.",
+    },
+    "primate_food_sharing": {
+        "gate_actions": ["Sharing food"],
+        "region": "actor",
+        "prompts": ["a primate eating alone",
+                    "a primate sharing food with another",
+                    "primates competing aggressively for food"],
+        "fire_if": "a primate sharing food with another",
+        "use": "Cooperation/affiliation; social behavior of high interest.",
+    },
+    "primate_vocal_alarm": {
+        "gate_actions": ["Calling"],
+        "region": "frame",
+        "prompts": ["primates quiet and relaxed",
+                    "primates giving alarm calls while focused on a threat",
+                    "primates vocalizing in play or normal communication"],
+        "fire_if": "primates giving alarm calls while focused on a threat",
+        "use": "Threat detection; context for predator/stranger events.",
+    },
+    "primate_stereotypy_pacing": {
+        "gate_actions": ["Moving", "Swimming in circles"],
+        "region": "actor",
+        "prompts": ["a primate moving with varied paths",
+                    "a primate pacing repetitively along same route",
+                    "a primate resting"],
+        "fire_if": "a primate pacing repetitively along same route",
+        "use": "Stereotypic behavior; strong welfare problem in captivity.",
+    },
+    "primate_stereotypy_head_tossing": {
+        "gate_actions": ["Shaking head", "Swaying"],
+        "region": "actor",
+        "prompts": ["a primate with head movements only during normal activity",
+                    "a primate repeatedly tossing or shaking head without context",
+                    "a primate grooming or interacting socially"],
+        "fire_if": "a primate repeatedly tossing or shaking head without context",
+        "use": "Abnormal repetitive behavior; welfare indicator.",
+    },
+    "primate_social_isolation": {
+        "gate_actions": ["Keeping still", "Resting"],
+        "region": "frame",
+        "prompts": ["a primate within group proximity",
+                    "a primate consistently isolated away from group",
+                    "no group visible (single animal only)"],
+        "fire_if": "a primate consistently isolated away from group",
+        "use": "Social isolation; important indicator of stress or low status.",
+    },
+    "primate_maternal_care": {
+        "gate_actions": ["Showing affection", "Holding hands", "Hugging"],
+        "region": "actor",
+        "prompts": ["an adult primate away from infant",
+                    "an adult primate carrying, holding, or grooming infant",
+                    "infant near adult without caring interaction"],
+        "fire_if": "an adult primate carrying, holding, or grooming infant",
+        "use": "Maternal care; high-value welfare and social metric.",
+    },
+    "primate_neonate_abandonment": {
+        "gate_actions": ["Keeping still", "Immobilized"],
+        "region": "frame",
+        "prompts": ["infant primate near caring adult",
+                    "infant primate alone without adult nearby",
+                    "no infant present"],
+        "fire_if": "infant primate alone without adult nearby",
+        "use": "Possible neglect/abandonment; critical welfare alert.",
+    },
+
+    # ==================================================================
+    # T) PARROT / PSITTACINE-SPECIFIC BEHAVIOR
+    # ==================================================================
+    "parrot_feather_condition": {
+        "gate_actions": ["Grooming", "Preening"],
+        "region": "actor",
+        "prompts": ["a parrot with normal feather coverage",
+                    "a parrot with obvious feather loss or damage",
+                    "a parrot currently molting with normal pattern"],
+        "fire_if": "a parrot with obvious feather loss or damage",
+        "use": "Feather condition; important welfare indicator for parrots.",
+    },
+    "parrot_feather_plucking": {
+        "gate_actions": ["Grooming", "Manipulating object"],
+        "region": "actor",
+        "prompts": ["a parrot preening normally",
+                    "a parrot pulling out its own feathers repeatedly",
+                    "a parrot manipulating toys without feather damage"],
+        "fire_if": "a parrot pulling out its own feathers repeatedly",
+        "use": "Self-mutilation; serious welfare and stress sign.",
+    },
+    "parrot_vocalizing_loud": {
+        "gate_actions": ["Calling"],
+        "region": "frame",
+        "prompts": ["a parrot quiet or speaking softly",
+                    "a parrot vocalizing loudly or screaming",
+                    "environment noise without parrot vocalization"],
+        "fire_if": "a parrot vocalizing loudly or screaming",
+        "use": "Noise/stress context; relevant for household and zoo settings.",
+    },
+    "parrot_playing_toys": {
+        "gate_actions": ["Playing", "Manipulating object"],
+        "region": "actor",
+        "prompts": ["a parrot perched without toy use",
+                    "a parrot actively playing with toys",
+                    "a parrot destroying objects aggressively"],
+        "fire_if": "a parrot actively playing with toys",
+        "use": "Enrichment engagement; positive welfare indicator.",
+    },
+    "parrot_climbing_activity": {
+        "gate_actions": ["Climbing", "Swinging"],
+        "region": "actor",
+        "prompts": ["a parrot only sitting",
+                    "a parrot climbing or swinging on cage structures",
+                    "a parrot walking on floor"],
+        "fire_if": "a parrot climbing or swinging on cage structures",
+        "use": "Activity and environmental use; helps assess enclosure quality.",
+    },
+    "parrot_beak_grinding_relax": {
+        "gate_actions": ["Keeping still"],
+        "region": "actor",
+        "prompts": ["a parrot resting silently",
+                    "a parrot resting and grinding beak quietly",
+                    "a parrot grinding beak aggressively on bars"],
+        "fire_if": "a parrot resting and grinding beak quietly",
+        "use": "Relaxed contentment indicator; subtle positive welfare cue.",
+    },
+    "parrot_stereotypy_bar_climbing": {
+        "gate_actions": ["Climbing"],
+        "region": "actor",
+        "prompts": ["a parrot climbing occasionally",
+                    "a parrot climbing bars repetitively without other activity",
+                    "a parrot flying within enclosure"],
+        "fire_if": "a parrot climbing bars repetitively without other activity",
+        "use": "Stereotypic activity; stress indicator in captive parrots.",
+    },
+    "parrot_regurgitating_to_human": {
+        "gate_actions": ["Urinating", "Defecating"],  # reusing elimination gate set
+        "region": "actor",
+        "prompts": ["a parrot near human with no special behavior",
+                    "a parrot regurgitating food to human or mate",
+                    "a parrot vomiting due to illness"],
+        "fire_if": "a parrot regurgitating food to human or mate",
+        "use": "Affection or bonding behavior; possibly misinterpreted by owners.",
+    },
+    "parrot_vocal_imitation_human": {
+        "gate_actions": ["Calling"],
+        "region": "actor",
+        "prompts": ["a parrot giving typical bird calls",
+                    "a parrot imitating human speech or sounds",
+                    "environment speech without parrot involvement"],
+        "fire_if": "a parrot imitating human speech or sounds",
+        "use": "Cognitive and enrichment indicator; high UX value.",
+    },
+    "parrot_perch_use_balance": {
+        "gate_actions": ["Standing", "Immobilized"],
+        "region": "actor",
+        "prompts": ["a parrot standing balanced on perch",
+                    "a parrot losing balance or repeatedly slipping from perch",
+                    "a parrot on ground by choice"],
+        "fire_if": "a parrot losing balance or repeatedly slipping from perch",
+        "use": "Leg/foot health indicator; important welfare point.",
+
+    # ==================================================================
+    # U) DONKEY / CAMEL / OTHER WORKING ANIMALS
+    # ==================================================================
+    "working_animal_load_carrying": {
+        "gate_actions": ["Being carried", "Being dragged", "Carrying"],
+        "region": "actor",
+        "prompts": ["an animal without load",
+                    "an animal carrying or pulling heavy load",
+                    "an animal dragging load beyond apparent capacity"],
+        "fire_if": ["an animal carrying or pulling heavy load",
+                    "an animal dragging load beyond apparent capacity"],
+        "use": "Load carriage; context for welfare and overloading of working animals.",
+    },
+    "working_animal_resting_with_load": {
+        "gate_actions": ["Resting", "Keeping still"],
+        "region": "actor",
+        "prompts": ["an animal resting without load",
+                    "an animal resting while still attached to heavy load",
+                    "an animal standing lightly loaded"],
+        "fire_if": "an animal resting while still attached to heavy load",
+        "use": "Work/rest balance; possible welfare concern.",
+    },
+    "working_animal_harness_wounds": {
+        "gate_actions": ["Rubbing its head", "Shaking", "Struggling"],
+        "region": "actor",
+        "prompts": ["an animal in harness moving normally",
+                    "an animal repeatedly rubbing harness areas or showing discomfort",
+                    "an animal free of harness"],
+        "fire_if": "an animal repeatedly rubbing harness areas or showing discomfort",
+        "use": "Potential harness sores or pain; important welfare indicator.",
+    },
+    "working_animal_overheat": {
+        "gate_actions": ["Panting", "Keeping still"],
+        "region": "actor",
+        "prompts": ["an animal working without signs of heat stress",
+                    "an animal panting heavily, sweating, seeking shade while working",
+                    "an animal resting in shade only"],
+        "fire_if": "an animal panting heavily, sweating, seeking shade while working",
+        "use": "Heat stress with work; high-priority welfare flag.",
+    },
+    "working_animal_reluctance_to_move": {
+        "gate_actions": ["Walking", "Struggling"],
+        "region": "actor",
+        "prompts": ["an animal walking normally when urged",
+                    "an animal reluctant to move or resisting movement under load",
+                    "an animal resting by choice without load"],
+        "fire_if": "an animal reluctant to move or resisting movement under load",
+        "use": "Pain/fatigue indicator; welfare assessment for working animals.",
+    },
+
+    # ==================================================================
+    # V) CROSS-SPECIES META / METRIC-LIKE FLAGS
+    # ==================================================================
+    "meta_low_behavioral_diversity": {
+        "gate_actions": ["*"],
+        "region": "frame",
+        "prompts": ["animals showing varied behaviors over time",
+                    "animals showing only one or two repeated behaviors",
+                    "no animals visible"],
+        "fire_if": "animals showing only one or two repeated behaviors",
+        "use": "Low behavioral diversity; potential negative welfare indicator [web:14][web:36].",
+    },
+    "meta_high_behavioral_diversity": {
+        "gate_actions": ["*"],
+        "region": "frame",
+        "prompts": ["animals mostly inactive",
+                    "animals showing a wide range of normal behaviors (feeding, resting, play)",
+                    "animals engaged only in abnormal behaviors"],
+        "fire_if": "animals showing a wide range of normal behaviors (feeding, resting, play)",
+        "use": "Potential positive welfare indicator via behavioral diversity [web:14][web:36].",
+    },
+    "meta_activity_budget_rest_imbalance": {
+        "gate_actions": ["Resting", "Sleeping", "Keeping still"],
+        "region": "frame",
+        "prompts": ["animals with balanced active vs rest time",
+                    "animals spending excessive time resting/immobile",
+                    "animals almost never resting"],
+        "fire_if": ["animals spending excessive time resting/immobile",
+                    "animals almost never resting"],
+        "use": "Imbalance in activity budgets; can indicate poor welfare [web:15][web:36].",
+    },
+    "meta_activity_budget_feeding_imbalance": {
+        "gate_actions": ["Eating", "Drinking", "Pecking"],
+        "region": "frame",
+        "prompts": ["animals with normal feeding time",
+                    "animals feeding far less than expected",
+                    "animals feeding excessively or constantly"],
+        "fire_if": ["animals feeding far less than expected",
+                    "animals feeding excessively or constantly"],
+        "use": "Feeding-time anomalies; nutrition and welfare context.",
+    },
+    "meta_environment_risk_predator_presence": {
+        "gate_actions": ["Predator_screen"],
+        "region": "frame",
+        "prompts": ["no predator near herd",
+                    "predator detected near herd or flock",
+                    "unknown animal but no clear threat"],
+        "fire_if": "predator detected near herd or flock",
+        "use": "Environmental risk flag; predator presence combined with behavior.",
+    },
+    "meta_environment_risk_escape": {
+        "gate_actions": ["Gate_open", "Fence_breach", "Escaping"],
+        "region": "frame",
+        "prompts": ["enclosure secure and animals calm",
+                    "open gate or fence breach with animals near or moving out",
+                    "open gate with no animals nearby"],
+        "fire_if": "open gate or fence breach with animals near or moving out",
+        "use": "High risk of escape; direct management alert.",
+    },
+    "meta_health_risk_multiple_signs": {
+        "gate_actions": ["Gasping for air", "Immobilized", "Struggling", "Panting"],
+        "region": "actor",
+        "prompts": ["animal with no clear distress",
+                    "animal showing multiple distress signs (e.g. gasping + immobilized)",
+                    "animal showing only one mild sign"],
+        "fire_if": "animal showing multiple distress signs (e.g. gasping + immobilized)",
+        "use": "Composite health risk; meta flag combining several indicators [web:35][web:40].",
+    },
+    "meta_social_risk_bullying": {
+        "gate_actions": ["Getting bullied", "Disturbing another animal", "Fighting"],
+        "region": "frame",
+        "prompts": ["animals interacting with balanced social behavior",
+                    "one or few animals repeatedly bullied by others",
+                    "short isolated conflict only"],
+        "fire_if": "one or few animals repeatedly bullied by others",
+        "use": "Group social risk; bullying pattern rather than single event.",
+    },
+    "meta_positive_welfare_play_enrichment": {
+        "gate_actions": ["Playing", "Manipulating object", "Dust bathing"],
+        "region": "frame",
+        "prompts": ["animals with little play or enrichment use",
+                    "animals frequently playing and using enrichment objects",
+                    "animals only showing abnormal repetitive behaviors"],
+        "fire_if": "animals frequently playing and using enrichment objects",
+        "use": "Positive welfare signal via play/enrichment engagement [web:14][web:36].",
+    },
+    "meta_negative_welfare_stereotypy_index": {
+        "gate_actions": ["Swaying", "Swimming in circles", "Pacing", "Weaving", "Bar biting"],
+        "region": "frame",
+        "prompts": ["animals with no stereotypic patterns",
+                    "animals showing repeated stereotypic movement or bar biting",
+                    "animals briefly repeating a movement without persistence"],
+        "fire_if": "animals showing repeated stereotypic movement or bar biting",
+        "use": "Generic stereotypy index; key negative welfare metric [web:35][web:38].",
+    },
+
+    # ==================================================================
+    # W) DOG – ACCURACY REFINEMENTS
+    # ==================================================================
+    "dog_sniffing_ground": {
+        "gate_actions": ["Sensing", "Exploring"],
+        "region": "actor",
+        "prompts": ["a dog walking without nose to ground",
+                    "a dog sniffing the ground with nose down",
+                    "a dog resting with head up"],
+        "fire_if": "a dog sniffing the ground with nose down",
+        "use": "Search/exploration behavior; important for context (walk vs tracking).",
+    },
+    "dog_sniffing_other_animal": {
+        "gate_actions": ["Sensing", "Showing affection"],
+        "region": "actor",
+        "prompts": ["a dog near another animal without interaction",
+                    "a dog sniffing another animal, nose close to body",
+                    "a dog aggressively attacking another animal"],
+        "fire_if": "a dog sniffing another animal, nose close to body",
+        "use": "Social investigation; relevant for introductions and social context.",
+    },
+    "dog_shaking_off": {
+        "gate_actions": ["Shaking"],
+        "region": "actor",
+        "prompts": ["a dog standing still",
+                    "a dog performing full-body shake-off after stress or getting wet",
+                    "a dog trembling from cold"],
+        "fire_if": "a dog performing full-body shake-off after stress or getting wet",
+        "use": "Transition marker (end of stress or water exposure).",
+    },
+    "dog_lip_licking": {
+        "gate_actions": ["Licking"],
+        "region": "actor",
+        "prompts": ["a dog with relaxed mouth",
+                    "a dog licking its lips repeatedly without food present",
+                    "a dog licking food or objects"],
+        "fire_if": "a dog licking its lips repeatedly without food present",
+        "use": "Subtle stress or appeasement signal in dogs.",
+    },
+    "dog_yawning_stress": {
+        "gate_actions": ["Yawning"],
+        "region": "actor",
+        "prompts": ["a dog yawning while clearly sleepy/resting",
+                    "a dog yawning in a stressful or training situation",
+                    "no yawning visible"],
+        "fire_if": "a dog yawning in a stressful or training situation",
+        "use": "Stress yawn vs sleep yawn; better emotional context.",
+    },
+    "dog_crouched_fear_posture": {
+        "gate_actions": ["Keeping still", "Squatting"],
+        "region": "actor",
+        "prompts": ["a dog standing relaxed",
+                    "a dog crouched low, tail tucked, ears back",
+                    "a dog lying down fully"],
+        "fire_if": "a dog crouched low, tail tucked, ears back",
+        "use": "Fear posture; used for welfare/behavior warnings.",
+    },
+    "dog_separation_distress_door": {
+        "gate_actions": ["Keeping still", "Barking"],
+        "region": "frame",
+        "prompts": ["a dog resting away from doors/windows",
+                    "a dog waiting at door or window, vocalizing or pacing",
+                    "no dog near doors/windows"],
+        "fire_if": "a dog waiting at door or window, vocalizing or pacing",
+        "use": "Separation-related behavior; important for household alerts.",
+    },
+    "dog_piloerection_hackles": {
+        "gate_actions": ["Displaying defensive pose"],
+        "region": "actor",
+        "prompts": ["a dog with smooth coat along back",
+                    "a dog with raised hackles (piloerection) along neck/back",
+                    "a dog with fluffed coat due to grooming only"],
+        "fire_if": "a dog with raised hackles (piloerection) along neck/back",
+        "use": "Arousal/aggression/fear marker; refines defensive state.",
+    },
+
+    # ==================================================================
+    # X) CAT – ACCURACY REFINEMENTS
+    # ==================================================================
+    "cat_crouched_stalking_posture": {
+        "gate_actions": ["Keeping still", "Walking"],
+        "region": "actor",
+        "prompts": ["a cat walking normally",
+                    "a cat crouched low, stalking with slow movement",
+                    "a cat lying relaxed"],
+        "fire_if": "a cat crouched low, stalking with slow movement",
+        "use": "Hunting/play stalk; context for predation and play.",
+    },
+    "cat_arched_back_defensive": {
+        "gate_actions": ["Displaying defensive pose"],
+        "region": "actor",
+        "prompts": ["a cat with normal body posture",
+                    "a cat with back arched, fur puffed, defensive posture",
+                    "a cat stretching back without puffing"],
+        "fire_if": "a cat with back arched, fur puffed, defensive posture",
+        "use": "Classic threat/fear signal in cats.",
+    },
+    "cat_ears_flat_back": {
+        "gate_actions": ["Displaying defensive pose"],
+        "region": "actor",
+        "prompts": ["a cat with ears in neutral position",
+                    "a cat with ears flattened back against head",
+                    "a cat with ears forward in curiosity"],
+        "fire_if": "a cat with ears flattened back against head",
+        "use": "Fear/irritation/aggression context for cats.",
+    },
+    "cat_overgrooming": {
+        "gate_actions": ["Grooming"],
+        "region": "actor",
+        "prompts": ["a cat grooming at normal frequency",
+                    "a cat repeatedly grooming same area excessively",
+                    "a cat barely grooming itself"],
+        "fire_if": "a cat repeatedly grooming same area excessively",
+        "use": "Stress/skin issue; negative welfare indicator.",
+    },
+    "cat_head_rubbing_bunting": {
+        "gate_actions": ["Rubbing its head"],
+        "region": "actor",
+        "prompts": ["a cat near objects without rubbing",
+                    "a cat rubbing head against humans or objects (bunting)",
+                    "a cat scratching instead of rubbing"],
+        "fire_if": "a cat rubbing head against humans or objects (bunting)",
+        "use": "Affection/territorial marking; positive social context.",
+    },
+
+    # ==================================================================
+    # Y) CATTLE – ACCURACY REFINEMENTS
+    # ==================================================================
+    "cattle_ear_flicking": {
+        "gate_actions": ["Tail swishing", "Shaking head"],
+        "region": "actor",
+        "prompts": ["a cow with ears still",
+                    "a cow flicking ears repeatedly (insects/irritation)",
+                    "a cow shaking whole head strongly"],
+        "fire_if": "a cow flicking ears repeatedly (insects/irritation)",
+        "use": "Minor irritation; insect or discomfort context.",
+    },
+    "cattle_ears_pinned_back": {
+        "gate_actions": ["Displaying defensive pose"],
+        "region": "actor",
+        "prompts": ["a cow with ears neutral",
+                    "a cow with ears pinned back in aggressive/defensive posture",
+                    "a cow with ears forward in attention"],
+        "fire_if": "a cow with ears pinned back in aggressive/defensive posture",
+        "use": "Aggression readiness; safety and welfare cue.",
+    },
+    "cattle_mounting": {
+        "gate_actions": ["Performing copulatory mounting"],
+        "region": "actor",
+        "prompts": ["cattle near each other without mounting",
+                    "one bovine mounting another",
+                    "cattle playing without mounting"],
+        "fire_if": "one bovine mounting another",
+        "use": "Heat detection or dominance; important for reproduction and management.",
+    },
+    "cattle_licking_other": {
+        "gate_actions": ["Performing allo-grooming"],
+        "region": "actor",
+        "prompts": ["a cow alone not licking",
+                    "a cow licking another cow (social grooming)",
+                    "a cow licking objects"],
+        "fire_if": "a cow licking another cow (social grooming)",
+        "use": "Social bonding; positive welfare behavior.",
+    },
+    "cattle_calf_nursing": {
+        "gate_actions": ["Eating"],
+        "region": "actor",
+        "prompts": ["a calf near dam without nursing",
+                    "a calf suckling from dam",
+                    "a calf feeding from bucket or trough"],
+        "fire_if": "a calf suckling from dam",
+        "use": "Nursing; survival and welfare indicator.",
+    },
+    "cattle_cow_licking_calf": {
+        "gate_actions": ["Showing affection", "Grooming"],
+        "region": "actor",
+        "prompts": ["a cow near calf without contact",
+                    "a cow licking her calf",
+                    "a cow licking random objects"],
+        "fire_if": "a cow licking her calf",
+        "use": "Maternal care; important for calf bonding and welfare.",
+    },
+    "cattle_abnormal_lying_time": {
+        "gate_actions": ["Lying down", "Resting"],
+        "region": "frame",
+        "prompts": ["herd with normal balance of lying vs standing",
+                    "most cattle lying for prolonged periods",
+                    "most cattle almost never lying down"],
+        "fire_if": ["most cattle lying for prolonged periods",
+                    "most cattle almost never lying down"],
+        "use": "Time-budget anomaly; possible comfort or health issue.",
+    },
+
+    # ==================================================================
+    # Z) SHEEP / GOAT – ACCURACY REFINEMENTS
+    # ==================================================================
+    "small_ruminant_grazing": {
+        "gate_actions": ["Eating"],
+        "region": "actor",
+        "prompts": ["a sheep/goat away from forage",
+                    "a sheep/goat eating grass close to ground",
+                    "a sheep/goat browsing leaves above ground"],
+        "fire_if": "a sheep/goat eating grass close to ground",
+        "use": "True grazing; pasture-use context.",
+    },
+    "small_ruminant_bleating": {
+        "gate_actions": ["Calling"],
+        "region": "actor",
+        "prompts": ["a sheep/goat silent",
+                    "a sheep/goat bleating or calling",
+                    "environment noise without vocalization"],
+        "fire_if": "a sheep/goat bleating or calling",
+        "use": "Communication; can be normal or distress depending on pattern.",
+    },
+    "small_ruminant_hoof_stamping": {
+        "gate_actions": ["Pounding"],
+        "region": "actor",
+        "prompts": ["a sheep/goat standing calmly",
+                    "a sheep/goat stamping hoof repeatedly",
+                    "a sheep/goat walking"],
+        "fire_if": "a sheep/goat stamping hoof repeatedly",
+        "use": "Irritation or warning; defensive cue.",
+    },
+
+    # ==================================================================
+    # AA) PIG – ACCURACY REFINEMENTS
+    # ==================================================================
+    "pig_wallowing": {
+        "gate_actions": ["Rolling", "Washing"],
+        "region": "actor",
+        "prompts": ["a pig on dry ground",
+                    "a pig rolling or lying in mud/water (wallowing)",
+                    "a pig simply lying without mud"],
+        "fire_if": "a pig rolling or lying in mud/water (wallowing)",
+        "use": "Thermoregulation/enrichment; species-typical pig behavior.",
+    },
+    "pig_ear_biting": {
+        "gate_actions": ["Disturbing another animal", "Fighting"],
+        "region": "actor",
+        "prompts": ["pigs near each other calmly",
+                    "a pig biting or attacking another pig's ear",
+                    "pigs playing without biting ears"],
+        "fire_if": "a pig biting or attacking another pig's ear",
+        "use": "Aggression and welfare problem like tail biting.",
+    },
+    "pig_belly_nosing": {
+        "gate_actions": ["Manipulating object"],
+        "region": "actor",
+        "prompts": ["piglets near sow without special behavior",
+                    "piglets nosing sow's belly repeatedly",
+                    "piglets nursing only"],
+        "fire_if": "piglets nosing sow's belly repeatedly",
+        "use": "Pre-feeding/social behavior; can be associated with management issues.",
+    },
+    "pig_abnormal_stand_sit_cycles": {
+        "gate_actions": ["Standing", "Sitting", "Lying down"],
+        "region": "actor",
+        "prompts": ["a pig changing posture occasionally",
+                    "a pig repeatedly standing and sitting in short cycles",
+                    "a pig lying or standing for long periods"],
+        "fire_if": "a pig repeatedly standing and sitting in short cycles",
+        "use": "Restlessness or discomfort; welfare signal.",
+    },
+
+    # ==================================================================
+    # AB) POULTRY – ACCURACY REFINEMENTS
+    # ==================================================================
+    "poultry_wing_stretching": {
+        "gate_actions": ["Spreading wings"],
+        "region": "actor",
+        "prompts": ["a bird with wings folded",
+                    "a bird stretching one or both wings",
+                    "a bird fully flying"],
+        "fire_if": "a bird stretching one or both wings",
+        "use": "Wing stretch; normal maintenance and comfort behavior.",
+    },
+    "poultry_squatting_mating_signal": {
+        "gate_actions": ["Squatting"],
+        "region": "actor",
+        "prompts": ["a hen standing normally",
+                    "a hen squatting low to ground as mating posture",
+                    "a hen lying fully resting"],
+        "fire_if": "a hen squatting low to ground as mating posture",
+        "use": "Mating readiness signal in hens.",
+    },
+
+    # ==================================================================
+    # AC) HORSE – ACCURACY REFINEMENTS
+    # ==================================================================
+    "equine_reluctance_to_move": {
+        "gate_actions": ["Walking", "Standing", "Struggling"],
+        "region": "actor",
+        "prompts": ["a horse walking willingly when led",
+                    "a horse refusing or reluctant to move when asked",
+                    "a horse standing by choice without request to move"],
+        "fire_if": "a horse refusing or reluctant to move when asked",
+        "use": "Possible pain/fatigue; important welfare and performance cue.",
+    },
+    "equine_flehmen_response": {
+        "gate_actions": ["Having a flehmen response"],
+        "region": "actor",
+        "prompts": ["a horse with neutral facial posture",
+                    "a horse curling upper lip in flehmen response",
+                    "a horse sniffing only without lip curl"],
+        "fire_if": "a horse curling upper lip in flehmen response",
+        "use": "Chemical sensing; context around novel smells/hormones.",
+    },
+
+    # ==================================================================
+    # AD) FISH – ACCURACY REFINEMENTS
+    # ==================================================================
+    "fish_resting_normal": {
+        "gate_actions": ["Keeping still", "Resting"],
+        "region": "actor",
+        "prompts": ["fish active and swimming",
+                    "fish resting in typical species-appropriate posture",
+                    "fish lying on side or bottom abnormally"],
+        "fire_if": "fish resting in typical species-appropriate posture",
+        "use": "Normal rest; contrast with abnormal bottom sitting or side-lying.",
+    },
+    "fish_school_cohesion_level": {
+        "gate_actions": ["Swimming"],
+        "region": "frame",
+        "prompts": ["school loosely formed",
+                    "school tightly cohesive",
+                    "fish scattered and not schooling"],
+        "fire_if": "school tightly cohesive",
+        "use": "School cohesion metric; context for normal vs disrupted grouping.",
+    },
+
+    # ==================================================================
+    # AE) LIZARD – ACCURACY REFINEMENTS
+    # ==================================================================
+    "lizard_normal_basking_vs_overbasking": {
+        "gate_actions": ["Standing", "Lying down"],
+        "region": "frame",
+        "prompts": ["lizard alternates between basking and cooler zones",
+                    "lizard almost always at basking spot",
+                    "lizard rarely or never at basking spot"],
+        "fire_if": ["lizard almost always at basking spot",
+                    "lizard rarely or never at basking spot"],
+        "use": "Over- or under-basking; refined thermoregulation welfare cue.",
+    },
+    "lizard_normal_hide_use_vs_none": {
+        "gate_actions": ["Entering its nest", "Sleeping in its nest"],
+        "region": "frame",
+        "prompts": ["lizard uses hide sometimes but not constantly",
+                    "lizard never uses hide despite availability",
+                    "lizard almost always inside hide"],
+        "fire_if": ["lizard never uses hide despite availability",
+                    "lizard almost always inside hide"],
+        "use": "Hide use extremes; better husbandry signal than single events.",
+    },
+
+    # ==================================================================
+    # AF) GENERIC – ACCURACY / DISAMBIGUATION
+    # ==================================================================
+    "generic_rest_vs_sleep_disambiguation": {
+        "gate_actions": ["Resting", "Sleeping"],
+        "region": "actor",
+        "prompts": ["an animal resting but with eyes open and responsive",
+                    "an animal sleeping with eyes closed and unresponsive",
+                    "an animal active"],
+        "fire_if": ["an animal resting but with eyes open and responsive",
+                    "an animal sleeping with eyes closed and unresponsive"],
+        "use": "Separates rest vs sleep; critical for time-budget and welfare metrics.",
+    },
+    "generic_feeding_vs_object_chewing": {
+        "gate_actions": ["Eating", "Biting", "Manipulating object"],
+        "region": "actor",
+        "prompts": ["an animal chewing food",
+                    "an animal chewing non-food objects (cords, furniture, bars)",
+                    "an animal not chewing"],
+        "fire_if": ["an animal chewing food",
+                    "an animal chewing non-food objects (cords, furniture, bars)"],
+        "use": "Distinguishes feeding from destructive/abnormal chewing.",
+    },
+    "generic_play_vs_fight_disambiguation": {
+        "gate_actions": ["Playing", "Fighting", "Pounding"],
+        "region": "actor",
+        "prompts": ["animals interacting gently and taking turns",
+                    "animals in rough, escalating contact without self-handicapping",
+                    "animals not interacting physically"],
+        "fire_if": ["animals interacting gently and taking turns",
+                    "animals in rough, escalating contact without self-handicapping"],
+        "use": "Helps separate play from true aggression across species.",
+    },
+    "generic_normal_vs_abnormal_vocal_pattern": {
+        "gate_actions": ["Calling", "Chirping", "Barking", "Bleating"],
+        "region": "frame",
+        "prompts": ["animals vocalizing at normal rate",
+                    "animals vocalizing excessively for species/context",
+                    "animals unusually silent when vocalization expected"],
+        "fire_if": ["animals vocalizing excessively for species/context",
+                    "animals unusually silent when vocalization expected"],
+        "use": "Vocalization pattern anomaly; cross-species stress/health clue.",
+    },
+

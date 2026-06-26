@@ -145,6 +145,59 @@ class ActionRecognizer:
         display = build_display_string(preds, animal_group)
         return preds, display
 
+    def predict_frame_scores_full(self, feat) -> np.ndarray:
+        """
+        Returns per-frame sigmoid scores [T, 140] matching the input clip length exactly.
+          T <= max_len : pad + mask (single forward pass)
+          T >  max_len : sliding window (stride = max_len//2), average overlapping frames
+        """
+        if isinstance(feat, str):
+            feat = np.load(feat).astype(np.float32)
+
+        T, D = feat.shape
+        W    = self.max_len
+
+        if T <= W:
+            pad    = np.zeros((W - T, D), dtype=np.float32)
+            feat_p = np.concatenate([feat, pad], axis=0)
+            mask   = np.array([True] * T + [False] * (W - T))
+            feat_t = torch.from_numpy(feat_p).unsqueeze(0).to(self.device)
+            mask_t = torch.from_numpy(mask).unsqueeze(0).to(self.device)
+            with torch.no_grad():
+                logits = self.model.forward_temporal(feat_t, mask_t)[0, :T].cpu().numpy()
+            return 1.0 / (1.0 + np.exp(-logits))   # [T, 140]
+
+        # Sliding window
+        stride  = W // 2
+        scores  = np.zeros((T, 140), dtype=np.float32)
+        counts  = np.zeros(T,        dtype=np.float32)
+
+        starts = list(range(0, T - W + 1, stride))
+        if not starts or starts[-1] + W < T:
+            starts.append(T - W)   # always cover the tail
+
+        mask_t = torch.ones(1, W, dtype=torch.bool).to(self.device)
+        for start in starts:
+            chunk  = feat[start : start + W]
+            feat_t = torch.from_numpy(chunk).unsqueeze(0).to(self.device)
+            with torch.no_grad():
+                logits = self.model.forward_temporal(feat_t, mask_t)[0].cpu().numpy()
+            scores[start : start + W] += 1.0 / (1.0 + np.exp(-logits))
+            counts[start : start + W] += 1.0
+
+        return scores / counts[:, None]   # [T, 140]
+
+    def predict_scores(self, feat) -> np.ndarray:
+        """Returns full sigmoid score vector [140] for a clip feature file or array."""
+        if isinstance(feat, str):
+            feat = np.load(feat).astype(np.float32)
+        feat_p, mask = self._prepare(feat)
+        feat_t = torch.from_numpy(feat_p).unsqueeze(0).to(self.device)
+        mask_t = torch.from_numpy(mask).unsqueeze(0).to(self.device)
+        with torch.no_grad():
+            logits = self.model(feat_t, mask_t)[0].cpu().numpy()
+        return 1.0 / (1.0 + np.exp(-logits))  # [140]
+
     def predict_video_id(self, video_id: str, feature_root: str,
                          subset: str = 'test', animal_group: str | None = None):
         path = os.path.join(feature_root, subset, 'rgb', f"{video_id}.npy")
@@ -185,9 +238,9 @@ class ActionRecognizer:
             (int(i), self.action_info[i]['action'], self.action_info[i]['category'], float(video_scores[i]))
             for i in top_indices if i in self.action_info
         ]
-        activations   = frame_scores[:, top_indices]                    # [T_valid, topk]
+        top_activations = frame_scores[:, top_indices]                  # [T_valid, topk]
 
-        return activations, top_labels, video_logits
+        return top_activations, top_labels, video_logits, frame_scores  # frame_scores: [T_valid, 140]
 
     def save_activation_plot(self, feat, video_name: str, out_dir: str,
                              topk: int = 5, animal_group: str | None = None,
@@ -202,11 +255,11 @@ class ActionRecognizer:
         gt_annotations: list of {'label': int, 'segment': [start, end]} from gt.json
         """
         os.makedirs(out_dir, exist_ok=True)
-        activations, top_labels, _ = self.predict_temporal(feat, topk=topk)
+        activations, top_labels, _, all_scores = self.predict_temporal(feat, topk=topk)
 
         npy_path = os.path.join(out_dir, f"{video_name}_activations.npy")
-        np.save(npy_path, activations)
-        print(f"[Saved] {npy_path}  shape={activations.shape}")
+        np.save(npy_path, all_scores)
+        print(f"[Saved] {npy_path}  shape={all_scores.shape}  (all 140 classes)")
 
         T      = activations.shape[0]
         x      = np.arange(T)

@@ -1,0 +1,721 @@
+CLIP_RULES = {
+
+    # ==================================================================
+    # A) ACTION VERIFICATION / REFINEMENT (generic, actor bbox)
+    # ==================================================================
+    "verify_drinking": {
+        "gate_actions": ["Drinking"],
+        "region": "actor",
+        "prompts": [
+            "an animal drinking water",
+            "an animal eating food",
+            "an animal doing nothing near a bowl",
+        ],
+        "fire_if": "an animal drinking water",
+        "use": "Confirm a real drinking event before logging hydration.",
+        "species_scope": ["generic"],
+        "domain": "production",
+        "severity": "context",
+    },
+
+    "verify_eating": {
+        "gate_actions": ["Eating", "Pecking", "Biting"],
+        "region": "actor",
+        "prompts": [
+            "an animal eating food",
+            "an animal sniffing food but not eating",
+            "an animal away from food",
+        ],
+        "fire_if": "an animal eating food",
+        "use": "Confirm a real feeding event before logging a meal.",
+        "species_scope": ["generic"],
+        "domain": "production",
+        "severity": "context",
+    },
+
+    "refine_movement_gait": {
+        "gate_actions": ["Running", "Walking", "Moving"],
+        "region": "actor",
+        "prompts": [
+            "an animal walking normally",
+            "an animal limping",
+            "an animal running",
+            "an animal pacing back and forth",
+        ],
+        "fire_if": "an animal limping",
+        "use": "Generic lameness / distress cue.",
+        "species_scope": ["generic"],
+        "domain": "health",
+        "severity": "welfare",
+    },
+
+    "eating_source": {
+        "gate_actions": ["Eating", "Pecking", "Biting"],
+        "region": "actor",
+        "prompts": [
+            "an animal eating from a bowl",
+            "an animal eating from the ground",
+            "an animal eating from a trough",
+            "an animal not eating",
+        ],
+        "fire_if": None,
+        "use": "Enriches feeding events (bowl vs trough vs ground).",
+        "species_scope": ["generic"],
+        "domain": "production",
+        "severity": "context",
+    },
+
+    # CSV line 40: Feeding,Eating (base)
+    "feeding_eating": {
+        "gate_actions": ["Eating"],
+        "region": "actor",
+        "prompts": [
+            "an animal near food but not eating",
+            "an animal actively eating food",
+            "no food visible near the animal",
+        ],
+        "fire_if": "an animal actively eating food",
+        "use": "Core feeding event; supports meal logging and intake estimation.",
+        "species_scope": ["generic"],
+        "domain": "production",
+        "severity": "context",
+    },
+
+    # ==================================================================
+    # B) GENERIC HEALTH / WELFARE (actor bbox)
+    # ==================================================================
+    "looks_distressed": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": [
+            "a calm relaxed animal",
+            "a distressed agitated animal",
+            "an aggressive animal",
+        ],
+        "fire_if": "a distressed agitated animal",
+        "use": "General stress flag; pairs with Panting/Startled/Struggling.",
+        "species_scope": ["generic"],
+        "domain": "welfare",
+        "severity": "welfare",
+    },
+
+    "is_shivering_cold": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": [
+            "a comfortable animal",
+            "a cold shivering animal",
+            "an animal curled up tightly for warmth",
+        ],
+        "fire_if": [
+            "a cold shivering animal",
+            "an animal curled up tightly for warmth",
+        ],
+        "use": "Cold-stress cue; pairs with snow/low temperature.",
+        "species_scope": ["generic"],
+        "domain": "health",
+        "severity": "welfare",
+    },
+
+    "is_overheating": {
+        "gate_actions": ["Panting", "Resting", "Lying down"],
+        "region": "actor",
+        "prompts": [
+            "a comfortable animal",
+            "an animal panting heavily from heat",
+            "an animal lying flat in the heat",
+        ],
+        "fire_if": [
+            "an animal panting heavily from heat",
+            "an animal lying flat in the heat",
+        ],
+        "use": "Heat-stress cue; pairs with hot/sunny scene.",
+        "species_scope": ["generic"],
+        "domain": "health",
+        "severity": "critical",
+    },
+
+    "body_condition": {
+        "gate_actions": ["Standing", "Walking", "Resting"],
+        "region": "actor",
+        "prompts": [
+            "a healthy weight animal",
+            "a very thin underweight animal",
+        ],
+        "fire_if": "a very thin underweight animal",
+        "use": "Coarse body-condition cue for livestock health.",
+        "species_scope": ["generic"],
+        "domain": "health",
+        "severity": "welfare",
+    },
+
+    "welfare_lameness_any_species": {
+        "gate_actions": ["Walking", "Running"],
+        "region": "actor",
+        "prompts": [
+            "an animal walking with normal even gait",
+            "an animal walking with visible limp or asymmetry",
+            "an animal not walking",
+        ],
+        "fire_if": "an animal walking with visible limp or asymmetry",
+        "use": "Cross-species lameness flag.",
+        "species_scope": ["generic"],
+        "domain": "health",
+        "severity": "critical",
+    },
+
+    "welfare_acute_distress_any_species": {
+        "gate_actions": ["Gasping for air", "Struggling", "Startled"],
+        "region": "actor",
+        "prompts": [
+            "an animal calm and breathing normally",
+            "an animal showing acute distress (severe gasping, thrashing)",
+            "an animal mildly startled only",
+        ],
+        "fire_if": "an animal showing acute distress (severe gasping, thrashing)",
+        "use": "Cross-species acute distress alarm.",
+        "species_scope": ["generic"],
+        "domain": "health",
+        "severity": "critical",
+    },
+
+    # ==================================================================
+    # C) INTRUDER / IDENTITY (actor bbox, low category confidence)
+    # ==================================================================
+    "predator_screen": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "gate_low_category_conf": True,
+        "prompts": [
+            "a wolf",
+            "a fox",
+            "a stray dog",
+            "a sheep",
+            "a cow",
+            "a horse",
+            "a domestic cat",
+        ],
+        "fire_if": ["a wolf", "a fox", "a stray dog"],
+        "use": "Open-vocab intruder check around the herd / yard.",
+        "species_scope": ["generic"],
+        "domain": "safety",
+        "severity": "critical",
+    },
+
+    "rodent_pest_screen": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "gate_low_category_conf": True,
+        "prompts": [
+            "a rat or mouse",
+            "a domestic cat",
+            "a domestic dog",
+            "nothing unusual",
+        ],
+        "fire_if": "a rat or mouse",
+        "use": "Pest detection indoors or in storage / barn.",
+        "species_scope": ["generic"],
+        "domain": "environment",
+        "severity": "welfare",
+    },
+
+    # ==================================================================
+    # D) ENVIRONMENTAL HAZARDS (frame-level)
+    # ==================================================================
+    "heavy_rain": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": [
+            "clear dry weather",
+            "heavy rain",
+            "a flooded wet ground",
+        ],
+        "fire_if": ["heavy rain", "a flooded wet ground"],
+        "use": "Shelter the animals; outdoor welfare alert.",
+        "species_scope": ["generic"],
+        "domain": "environment",
+        "severity": "welfare",
+    },
+
+    "fire_smoke": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": [
+            "a normal safe scene",
+            "fire and flames",
+            "thick smoke",
+        ],
+        "fire_if": ["fire and flames", "thick smoke"],
+        "use": "Critical safety alarm — fire near animals.",
+        "species_scope": ["generic"],
+        "domain": "safety",
+        "severity": "critical",
+    },
+
+    "gate_open": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": ["a closed gate", "an open gate"],
+        "fire_if": "an open gate",
+        "use": "Livestock containment — escape risk.",
+        "species_scope": ["generic"],
+        "domain": "safety",
+        "severity": "critical",
+    },
+
+    "fence_breach": {
+        "gate_actions": None,
+        "region": "frame",
+        "prompts": [
+            "an intact fence",
+            "a broken fence",
+            "a fence gap",
+        ],
+        "fire_if": ["a broken fence", "a fence gap"],
+        "use": "Perimeter integrity alert.",
+        "species_scope": ["generic"],
+        "domain": "safety",
+        "severity": "critical",
+    },
+
+    # ==================================================================
+    # E) SPECIES / LIFE-STAGE REFINEMENT (actor)
+    # ==================================================================
+    "dog_life_stage": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a puppy", "an adult dog", "a senior dog"],
+        "fire_if": None,
+        "use": "Dog life-stage refinement.",
+        "species_scope": ["dog"],
+        "domain": "behavior",
+        "severity": "context",
+    },
+
+    "cattle_life_stage_sex": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a calf", "a heifer", "a cow", "a bull", "a steer"],
+        "fire_if": None,
+        "use": "Correct cattle differentiation.",
+        "species_scope": ["cattle"],
+        "domain": "production",
+        "severity": "context",
+    },
+
+    "chicken_life_stage_sex": {
+        "gate_actions": ["*"],
+        "region": "actor",
+        "prompts": ["a chick", "a pullet", "a hen", "a cockerel", "a rooster"],
+        "fire_if": None,
+        "use": "Correct chicken differentiation.",
+        "species_scope": ["chicken"],
+        "domain": "production",
+        "severity": "context",
+    },
+
+    # ==================================================================
+    # F) DOG-SPECIFIC BEHAVIOR REFINEMENTS
+    # ==================================================================
+    "dog_play_bow": {
+        "gate_actions": ["Playing"],
+        "region": "actor",
+        "prompts": [
+            "a dog standing normally",
+            "a dog in a play-bow posture with front legs lowered and rear up",
+            "a dog in an aggressive forward-leaning posture",
+        ],
+        "fire_if": "a dog in a play-bow posture with front legs lowered and rear up",
+        "use": "Marks friendly play vs aggression for dogs.",
+        "species_scope": ["dog"],
+        "domain": "behavior",
+        "severity": "context",
+    },
+
+    "dog_resource_guarding": {
+        "gate_actions": ["Eating", "Sharing food", "Disturbing another animal"],
+        "region": "actor",
+        "prompts": [
+            "a dog eating calmly alone",
+            "a dog stiff, tense, guarding food or toys from others",
+            "dogs peacefully sharing food or toys",
+        ],
+        "fire_if": "a dog stiff, tense, guarding food or toys from others",
+        "use": "Resource guarding; behavior alert.",
+        "species_scope": ["dog"],
+        "domain": "behavior",
+        "severity": "welfare",
+    },
+
+    "dog_stress_signals": {
+        "gate_actions": ["Panting", "Yawning", "Keeping still"],
+        "region": "actor",
+        "prompts": [
+            "a dog relaxed with normal expression",
+            "a dog showing subtle stress signals (lip licking, yawning, turning away)",
+            "a dog overtly aggressive",
+        ],
+        "fire_if": "a dog showing subtle stress signals (lip licking, yawning, turning away)",
+        "use": "Early stress indicator for dogs.",
+        "species_scope": ["dog"],
+        "domain": "welfare",
+        "severity": "welfare",
+    },
+
+    # ==================================================================
+    # G) CAT-SPECIFIC BEHAVIOR REFINEMENTS
+    # ==================================================================
+    "cat_kneading": {
+        "gate_actions": ["Manipulating object", "Showing affection"],
+        "region": "actor",
+        "prompts": [
+            "a cat lying or sitting without paw movement",
+            "a cat kneading with front paws on a soft surface",
+            "a cat scratching aggressively",
+        ],
+        "fire_if": "a cat kneading with front paws on a soft surface",
+        "use": "Comfort/affection behavior.",
+        "species_scope": ["cat"],
+        "domain": "behavior",
+        "severity": "context",
+    },
+
+    "cat_hiding": {
+        "gate_actions": ["Keeping still", "Immobilized"],
+        "region": "actor",
+        "prompts": [
+            "a cat resting in open areas",
+            "a cat hiding under furniture or in confined dark spaces",
+            "no cat visible",
+        ],
+        "fire_if": "a cat hiding under furniture or in confined dark spaces",
+        "use": "Stress/illness indicator.",
+        "species_scope": ["cat"],
+        "domain": "health",
+        "severity": "welfare",
+    },
+
+    "cat_spray_marking": {
+        "gate_actions": ["Urinating"],
+        "region": "actor",
+        "prompts": [
+            "a cat urinating in a normal crouched posture",
+            "a cat spraying urine vertically on a surface",
+            "no urination visible",
+        ],
+        "fire_if": "a cat spraying urine vertically on a surface",
+        "use": "Territorial marking; indoor behavior management.",
+        "species_scope": ["cat"],
+        "domain": "behavior",
+        "severity": "context",
+    },
+
+    # ==================================================================
+    # H) CATTLE-SPECIFIC BEHAVIOR REFINEMENTS
+    # ==================================================================
+    "cattle_ruminating": {
+        "gate_actions": ["Eating", "Keeping still"],
+        "region": "actor",
+        "prompts": [
+            "a cow not chewing",
+            "a cow chewing cud while resting (ruminating)",
+            "a cow actively feeding from trough",
+        ],
+        "fire_if": "a cow chewing cud while resting (ruminating)",
+        "use": "Ruminant digestive behavior.",
+        "species_scope": ["cattle"],
+        "domain": "production",
+        "severity": "welfare",
+    },
+
+    "cattle_lameness_gait": {
+        "gate_actions": ["Walking", "Running"],
+        "region": "actor",
+        "prompts": [
+            "a cow walking with normal even gait",
+            "a cow walking with uneven, lame gait",
+            "a cow standing still",
+        ],
+        "fire_if": "a cow walking with uneven, lame gait",
+        "use": "Cattle lameness detection.",
+        "species_scope": ["cattle"],
+        "domain": "health",
+        "severity": "critical",
+    },
+
+    "cattle_social_isolation": {
+        "gate_actions": ["Keeping still", "Resting"],
+        "region": "frame",
+        "prompts": [
+            "a cow within close proximity to herd",
+            "a cow isolated away from herd",
+            "no herd visible",
+        ],
+        "fire_if": "a cow isolated away from herd",
+        "use": "Illness/stress marker in herd species.",
+        "species_scope": ["cattle"],
+        "domain": "welfare",
+        "severity": "welfare",
+    },
+
+    # ==================================================================
+    # I) PIG-SPECIFIC BEHAVIOR REFINEMENTS
+    # ==================================================================
+    "pig_rooting": {
+        "gate_actions": ["Digging", "Manipulating object"],
+        "region": "actor",
+        "prompts": [
+            "a pig standing or lying without snout use",
+            "a pig rooting with snout in soil, bedding, or substrate",
+            "a pig biting objects instead of rooting",
+        ],
+        "fire_if": "a pig rooting with snout in soil, bedding, or substrate",
+        "use": "Species-typical foraging/enrichment behavior.",
+        "species_scope": ["pig"],
+        "domain": "behavior",
+        "severity": "context",
+    },
+
+    "pig_tail_biting": {
+        "gate_actions": ["Pounding", "Disturbing another animal"],
+        "region": "actor",
+        "prompts": [
+            "pigs near each other calmly",
+            "a pig biting or attacking another pig's tail",
+            "pigs playing without tail biting",
+        ],
+        "fire_if": "a pig biting or attacking another pig's tail",
+        "use": "Serious welfare issue; tail biting.",
+        "species_scope": ["pig"],
+        "domain": "welfare",
+        "severity": "critical",
+    },
+
+    "pig_bar_biting_stereotypy": {
+        "gate_actions": ["Manipulating object"],
+        "region": "actor",
+        "prompts": [
+            "a pig calmly standing at pen bars",
+            "a pig repeatedly biting or chewing pen bars",
+            "a pig simply sniffing bars",
+        ],
+        "fire_if": "a pig repeatedly biting or chewing pen bars",
+        "use": "Stereotypic behavior in confined pigs.",
+        "species_scope": ["pig"],
+        "domain": "welfare",
+        "severity": "welfare",
+    },
+
+    # ==================================================================
+    # J) POULTRY-SPECIFIC BEHAVIOR REFINEMENTS
+    # ==================================================================
+    "poultry_dust_bathing": {
+        "gate_actions": ["Rolling", "Manipulating object"],
+        "region": "actor",
+        "prompts": [
+            "a bird standing or walking on dry substrate",
+            "a bird rolling and flapping in dust or litter (dust bathing)",
+            "a bird preening only",
+        ],
+        "fire_if": "a bird rolling and flapping in dust or litter (dust bathing)",
+        "use": "Species-specific maintenance behavior in poultry.",
+        "species_scope": ["chicken", "turkey", "duck"],
+        "domain": "welfare",
+        "severity": "welfare",
+    },
+
+    "poultry_feather_pecking": {
+        "gate_actions": ["Pecking", "Disturbing another animal"],
+        "region": "actor",
+        "prompts": [
+            "a bird pecking at feed",
+            "a bird repeatedly pecking feathers of another bird",
+            "birds near each other without pecking",
+        ],
+        "fire_if": "a bird repeatedly pecking feathers of another bird",
+        "use": "Damaging feather pecking; serious welfare issue.",
+        "species_scope": ["chicken", "turkey"],
+        "domain": "welfare",
+        "severity": "critical",
+    },
+
+    # ==================================================================
+    # K) HORSE / EQUINE-SPECIFIC BEHAVIOR REFINEMENTS
+    # ==================================================================
+    "equine_pawing": {
+        "gate_actions": ["Pounding"],
+        "region": "actor",
+        "prompts": [
+            "a horse standing calmly",
+            "a horse pawing the ground repeatedly with a foreleg",
+            "a horse moving normally without pawing",
+        ],
+        "fire_if": "a horse pawing the ground repeatedly with a foreleg",
+        "use": "Impatience, discomfort, or stereotypy.",
+        "species_scope": ["horse"],
+        "domain": "welfare",
+        "severity": "welfare",
+    },
+
+    "equine_weaving": {
+        "gate_actions": ["Swaying"],
+        "region": "actor",
+        "prompts": [
+            "a horse standing still",
+            "a horse weaving side-to-side at the stall door",
+            "a horse walking normally",
+        ],
+        "fire_if": "a horse weaving side-to-side at the stall door",
+        "use": "Stall stereotypy; welfare problem.",
+        "species_scope": ["horse"],
+        "domain": "welfare",
+        "severity": "welfare",
+    },
+
+    "equine_colic_posture": {
+        "gate_actions": ["Rolling", "Lying on its side", "Struggling"],
+        "region": "actor",
+        "prompts": [
+            "a horse lying or standing normally",
+            "a horse repeatedly looking at flank, pawing, rolling, or getting up/down",
+            "a horse resting calmly",
+        ],
+        "fire_if": (
+            "a horse repeatedly looking at flank, pawing, rolling, or getting up/down"
+        ),
+        "use": "Colic-like signs; health-critical.",
+        "species_scope": ["horse"],
+        "domain": "health",
+        "severity": "critical",
+    },
+
+    # ==================================================================
+    # L) FISH-SPECIFIC BEHAVIOR REFINEMENTS
+    # ==================================================================
+    "fish_surface_gasping": {
+        "gate_actions": ["Gasping for air", "Surfacing"],
+        "region": "actor",
+        "prompts": [
+            "fish swimming at various depths normally",
+            "fish repeatedly gasping at the water surface",
+            "fish briefly surfacing without gasping",
+        ],
+        "fire_if": "fish repeatedly gasping at the water surface",
+        "use": "Strong oxygen/respiratory distress signal.",
+        "species_scope": ["fish"],
+        "domain": "health",
+        "severity": "critical",
+    },
+
+    "fish_fin_clamping": {
+        "gate_actions": ["Keeping still", "Swimming"],
+        "region": "actor",
+        "prompts": [
+            "fish with fins extended normally",
+            "fish with fins clamped closely to body",
+            "fish briefly folding fins during fast movement",
+        ],
+        "fire_if": "fish with fins clamped closely to body",
+        "use": "Stress or disease indicator.",
+        "species_scope": ["fish"],
+        "domain": "health",
+        "severity": "welfare",
+    },
+
+    "fish_side_sinking_loss_balance": {
+        "gate_actions": ["Sinking"],
+        "region": "actor",
+        "prompts": [
+            "fish swimming upright",
+            "fish swimming or sinking on its side with loss of balance",
+            "fish lying on side but clearly dead",
+        ],
+        "fire_if": "fish swimming or sinking on its side with loss of balance",
+        "use": "Buoyancy/balance disorder; serious health issue.",
+        "species_scope": ["fish"],
+        "domain": "health",
+        "severity": "critical",
+    },
+
+    # ==================================================================
+    # M) LIZARD-SPECIFIC BEHAVIOR REFINEMENTS
+    # ==================================================================
+    "lizard_basking": {
+        "gate_actions": ["Standing", "Lying down", "Keeping still"],
+        "region": "actor",
+        "prompts": [
+            "a lizard off heat source",
+            "a lizard resting under heat lamp or basking spot",
+            "a lizard hiding away from any basking spot",
+        ],
+        "fire_if": "a lizard resting under heat lamp or basking spot",
+        "use": "Thermoregulation; critical reptile welfare.",
+        "species_scope": ["lizard"],
+        "domain": "environment",
+        "severity": "welfare",
+    },
+
+    "lizard_glass_surfing": {
+        "gate_actions": ["Climbing", "Running"],
+        "region": "actor",
+        "prompts": [
+            "a lizard resting or moving near ground",
+            "a lizard repeatedly climbing and running against glass walls",
+            "a lizard climbing natural structures",
+        ],
+        "fire_if": "a lizard repeatedly climbing and running against glass walls",
+        "use": "Stress/frustration in captive reptiles.",
+        "species_scope": ["lizard"],
+        "domain": "welfare",
+        "severity": "welfare",
+    },
+
+    "lizard_retained_shed_problem": {
+        "gate_actions": ["Molting"],
+        "region": "actor",
+        "prompts": [
+            "a lizard with complete shed removed",
+            "a lizard with retained shed on toes, tail, or eyes",
+            "a lizard not in shedding period",
+        ],
+        "fire_if": "a lizard with retained shed on toes, tail, or eyes",
+        "use": "Poor shedding; humidity/care issue.",
+        "species_scope": ["lizard"],
+        "domain": "welfare",
+        "severity": "welfare",
+    },
+
+    # ==================================================================
+    # N) META / COMPOSITE INDICATORS
+    # ==================================================================
+    "meta_social_risk_bullying": {
+        "gate_actions": ["Getting bullied", "Disturbing another animal", "Fighting"],
+        "region": "frame",
+        "prompts": [
+            "animals interacting with balanced social behavior",
+            "one or few animals repeatedly bullied by others",
+            "short isolated conflict only",
+        ],
+        "fire_if": "one or few animals repeatedly bullied by others",
+        "use": "Group social risk; bullying pattern.",
+        "species_scope": ["generic"],
+        "domain": "welfare",
+        "severity": "welfare",
+    },
+
+    "meta_negative_welfare_stereotypy_index": {
+        "gate_actions": ["Swaying", "Swimming in circles", "Swinging", "Pacing"],
+        "region": "frame",
+        "prompts": [
+            "animals with no stereotypic patterns",
+            "animals showing repeated stereotypic movement or bar biting",
+            "animals briefly repeating a movement without persistence",
+        ],
+        "fire_if": "animals showing repeated stereotypic movement or bar biting",
+        "use": "Generic stereotypy index; key negative welfare metric.",
+        "species_scope": ["generic"],
+        "domain": "welfare",
+        "severity": "welfare",
+    },
+
+}
