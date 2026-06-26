@@ -490,6 +490,7 @@ def parse_args():
     p.add_argument('--smooth',       type=float, default=SMOOTH)
     p.add_argument('--crop-size',    type=int,   default=CROP_SIZE)
     p.add_argument('--threshold',    type=float, default=THRESHOLD)
+    p.add_argument('--limit',        type=int,   default=0, help='process at most N videos (0 = all)')
     return p.parse_args()
 
 
@@ -504,7 +505,9 @@ def main():
     clip_model, preprocess = load_clip(device)
     species_embeddings = build_species_embeddings(clip_model, device)
 
-    video_files = [f for f in os.listdir(a.video_folder) if f.endswith('.mp4')]
+    video_files = sorted(f for f in os.listdir(a.video_folder) if f.endswith('.mp4'))
+    if a.limit:
+        video_files = video_files[:a.limit]
     print(f"Found {len(video_files)} videos in {a.video_folder}\n")
 
     for v_file in video_files:
