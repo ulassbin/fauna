@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 
 sys.path.insert(0, os.path.dirname(__file__))
 from model import ActionTransformer
-from utils import load_action_info, get_top_predictions, build_display_string
+from utils import load_action_info, get_top_predictions, build_display_string, get_device
 
 
 # ── Animal group mapping ───────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ def get_animal_group_from_keypoints(keypoint_path: str) -> str | None:
 class ActionRecognizer:
     def __init__(self, checkpoint_path: str, action_csv: str,
                  device: str | None = None, threshold: float = 0.3):
-        self.device      = torch.device(device or ('cuda' if torch.cuda.is_available() else 'cpu'))
+        self.device      = torch.device(device) if device else get_device()
         self.threshold   = threshold
         self.action_info = load_action_info(action_csv)
 

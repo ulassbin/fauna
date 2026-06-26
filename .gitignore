@@ -1,0 +1,29 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+.Python
+
+# ── Virtual env (the whole point: never commit this) ──
+.venv/
+venv/
+env/
+# NOTE: uv.lock IS committed — it pins exact versions for reproducibility.
+
+# ── ML artifacts & data (large, regenerated) ──
+checkpoints/
+runs/
+outputs/
+dataset/
+data/
+**/tb_logs/
+*.pt
+*.pth
+*.onnx
+*.npy
+*.mp4
+
+# ── OS / editor ──
+.DS_Store
+.idea/
+.vscode/

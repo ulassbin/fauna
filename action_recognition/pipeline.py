@@ -16,20 +16,27 @@ Stages 3-4 (action recognition + decision) are real.
 import os
 import sys
 import glob
+import argparse
 import numpy as np
+import cv2
+import torch
 
 sys.path.insert(0, os.path.dirname(__file__))
 from inference import ActionRecognizer
+from utils import get_device
 
 # ── Config ─────────────────────────────────────────────────────────────────────
-VIDEO_FOLDER    = '/home/ulas/codebase/fauna/data/vid_final'
-OUT_ROOT        = '/home/ulas/codebase/fauna/data/out_final'
-CHECKPOINT      = 'checkpoints/best.pt'
-ACTION_CSV      = 'dataset/actions_ak.csv'
-YOLO_MODEL      = '/home/ulas/codebase/fauna/yolo/weights/animalkingdom/best.pt'
-DEVICE          = None   # None = auto
+VIDEO_FOLDER    = 'data/vid_final'
+OUT_ROOT        = 'outputs/pipeline'
+CHECKPOINT      = 'weights/best_firstrun.pt'
+ACTION_CSV      = 'actions_ak.csv'
+YOLO_MODEL      = 'weights/best.pt'
+DEVICE          = None   # None = auto (CUDA > MPS > CPU)
 THRESHOLD       = 0.3
 MAX_ACTORS      = 10
+PAD             = 0.25   # bbox padding per side for actor crops
+SMOOTH          = 0.3    # EMA alpha for crop-center stabilization
+CROP_SIZE       = 256
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ── Species knowledge ─────────────────────────────────────────────────────────
@@ -72,30 +79,73 @@ SPECIES_CANDIDATES = {
 #  Species refinement via CLIP text similarity
 # ══════════════════════════════════════════════════════════════════════════════
 
-CLIP_PATH = '/home/ulas/Documents/PhD/2.Codes/CLIP'
+def load_clip(device):
+    """Load OpenAI CLIP (installed via pip/git). Returns (model, preprocess)."""
+    import clip
+    model, preprocess = clip.load("ViT-B/32", device=str(device))
+    model.eval()
+    return model, preprocess
 
 
-def build_species_embeddings(device: str) -> dict[int, np.ndarray]:
+def clip_encode_frames(frames_bgr, clip_model, preprocess, device, batch_size=64):
+    """Encode BGR frames -> [N, 512] float32 (raw image features, no L2 norm)."""
+    from PIL import Image
+    out = []
+    for i in range(0, len(frames_bgr), batch_size):
+        batch = frames_bgr[i:i + batch_size]
+        tens = torch.stack([
+            preprocess(Image.fromarray(cv2.cvtColor(f, cv2.COLOR_BGR2RGB)))
+            for f in batch
+        ]).to(device)
+        with torch.no_grad():
+            out.append(clip_model.encode_image(tens).float().cpu().numpy())
+    return np.concatenate(out, 0) if out else np.empty((0, 512), np.float32)
+
+
+def _read_frames(video_path):
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise FileNotFoundError(video_path)
+    frames = []
+    while True:
+        ok, f = cap.read()
+        if not ok:
+            break
+        frames.append(f)
+    cap.release()
+    return frames
+
+
+def _square_pad_box(x1, y1, x2, y2, pad):
+    cx, cy = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+    side = max(x2 - x1, y2 - y1) * (1 + 2 * pad)
+    return cx, cy, side
+
+
+def _ema(values, alpha):
+    out, prev = [], None
+    for v in values:
+        prev = v if prev is None else alpha * v + (1 - alpha) * prev
+        out.append(prev)
+    return out
+
+
+def _clamp(v, hi):
+    return int(max(0, min(v, hi)))
+
+
+def build_species_embeddings(clip_model, device) -> dict[int, np.ndarray]:
     """
     Pre-compute CLIP text embeddings for every species candidate.
     Returns dict: yolo_class_id → np.ndarray [N_species, 512] (L2-normalised).
     Loaded once in main() and passed through to avoid repeated model loading.
     """
-    import importlib
-    import sys
-    if CLIP_PATH not in sys.path:
-        sys.path.insert(0, CLIP_PATH)
-    clip_lib = importlib.import_module('clip')
-    import torch
-    dev = torch.device(device or ('cuda' if torch.cuda.is_available() else 'cpu'))
-    clip_model, _ = clip_lib.load("ViT-B/32", device=dev)
-    clip_model.eval()
-
+    import clip
     embeddings = {}
     with torch.no_grad():
         for class_id, candidates in SPECIES_CANDIDATES.items():
             prompts = [f"a photo of a {name}" for name in candidates]
-            tokens  = clip_lib.tokenize(prompts).to(dev)
+            tokens  = clip.tokenize(prompts).to(device)
             embs    = clip_model.encode_text(tokens).float()
             embs    = embs / embs.norm(dim=-1, keepdim=True)
             embeddings[class_id] = embs.cpu().numpy()   # [N, 512]
@@ -126,7 +176,7 @@ def refine_actor_id(yolo_class_id: int, actor_clip: np.ndarray,
 #  STAGE 1 — YOLO
 # ══════════════════════════════════════════════════════════════════════════════
 
-def run_yolo(video_path: str, video_dir: str, yolo_model) -> str:
+def run_yolo(video_path: str, video_dir: str, yolo_model, device) -> str:
     """
     Run YOLO pose tracking and save yolo.npz.
 
@@ -137,7 +187,8 @@ def run_yolo(video_path: str, video_dir: str, yolo_model) -> str:
         keypoints  [10, T, 23, 3]— x, y, confidence per keypoint
     """
     results = yolo_model.track(
-        video_path, conf=0.1, stream=True, imgsz=640, persist=True, device=0
+        video_path, conf=0.1, stream=True, imgsz=640, persist=True,
+        device=(0 if device.type == 'cuda' else device.type),
     )
 
     # Per-frame lists — we'll stack at the end
@@ -208,21 +259,73 @@ def yolo_path(video_dir: str) -> str:
 #  STAGE 2 — CLIP feature extraction  (stub)
 # ══════════════════════════════════════════════════════════════════════════════
 
-def extract_global_clip(video_path: str, video_dir: str) -> str:
-    """
-    TODO: Extract CLIP visual features for the full video.
-    Save to global_clip.npy with shape [T, 512].
-    """
-    raise NotImplementedError("Global CLIP extraction not yet implemented")
+def extract_global_clip(video_path: str, video_dir: str,
+                        clip_model, preprocess, device) -> str:
+    """Whole-frame CLIP features for the full video -> global_clip.npy [T, 512]."""
+    frames = _read_frames(video_path)
+    feats = clip_encode_frames(frames, clip_model, preprocess, device)
+    out = global_clip_path(video_dir)
+    np.save(out, feats.astype(np.float32))
+    print(f"  [clip] global_clip.npy  {feats.shape}")
+    return out
 
 
-def extract_actor_clips(video_path: str, video_dir: str) -> list[str]:
+def extract_actor_clips(video_path: str, video_dir: str,
+                        clip_model, preprocess, device,
+                        pad=PAD, smooth=SMOOTH, crop_size=CROP_SIZE) -> list[str]:
+    """Per-actor padded + stabilized crops from yolo.npz bboxes -> actor_<slot>_clip.npy [T, 512].
+
+    Full length (frame-aligned with global_clip); frames where the actor is
+    absent are hold-filled, and the `existence` mask in yolo.npz marks real ones.
     """
-    TODO: For each tracked actor, crop frames using bboxes from yolo.npz
-    and extract CLIP features. Save as actor_<id>_clip.npy [T, 512].
-    Returns list of saved paths.
-    """
-    raise NotImplementedError("Actor CLIP extraction not yet implemented")
+    yolo_file = yolo_path(video_dir)
+    if not os.path.exists(yolo_file):
+        print("  [clip] no yolo.npz - run YOLO first")
+        return []
+    data   = np.load(yolo_file)
+    exist  = data['existence']   # [10, T, 1]
+    bboxes = data['bboxes']      # [10, T, 4, 2]  corners tl,tr,br,bl
+    frames = _read_frames(video_path)
+    T = min(len(frames), exist.shape[1])
+    H, W = frames[0].shape[:2]
+
+    saved = []
+    for slot in range(exist.shape[0]):
+        present = np.where(exist[slot, :T, 0] > 0.5)[0]
+        if len(present) == 0:
+            continue
+        cxs, cys, sides = [], [], []
+        for t in present:
+            x1, y1 = bboxes[slot, t, 0]
+            x2, y2 = bboxes[slot, t, 2]
+            cx, cy, side = _square_pad_box(x1, y1, x2, y2, pad)
+            cxs.append(cx); cys.append(cy); sides.append(side)
+        side = _clamp(np.percentile(sides, 95), min(W, H)) or 32
+        sx, sy = _ema(cxs, smooth), _ema(cys, smooth)
+        center_at = {int(present[k]): (sx[k], sy[k]) for k in range(len(present))}
+
+        raw = [None] * T
+        for t in range(T):
+            if t in center_at:
+                cx, cy = center_at[t]
+                x0 = _clamp(cx - side / 2, W - side)
+                y0 = _clamp(cy - side / 2, H - side)
+                raw[t] = cv2.resize(frames[t][y0:y0 + side, x0:x0 + side], (crop_size, crop_size))
+        # forward-fill then back-fill so every frame has a crop (absent = hold)
+        last = None
+        for t in range(T):
+            if raw[t] is not None:
+                last = raw[t]
+            raw[t] = last
+        first_real = next((c for c in raw if c is not None), None)
+        crops = [c if c is not None else first_real for c in raw]
+
+        feats = clip_encode_frames(crops, clip_model, preprocess, device)
+        out = os.path.join(video_dir, f"actor_{slot}_clip.npy")
+        np.save(out, feats.astype(np.float32))
+        saved.append(out)
+        print(f"  [clip] actor_{slot}_clip.npy  {feats.shape}  ({len(present)}/{T} present)")
+    return saved
 
 
 def global_clip_path(video_dir: str) -> str:
@@ -376,31 +479,50 @@ def save_decision(video_name: str, video_dir: str, species_embeddings: dict):
 #  Main loop
 # ══════════════════════════════════════════════════════════════════════════════
 
+def parse_args():
+    p = argparse.ArgumentParser(description="Fauna inference pipeline")
+    p.add_argument('--video-folder', default=VIDEO_FOLDER)
+    p.add_argument('--out-root',     default=OUT_ROOT)
+    p.add_argument('--yolo-model',   default=YOLO_MODEL)
+    p.add_argument('--checkpoint',   default=CHECKPOINT)
+    p.add_argument('--action-csv',   default=ACTION_CSV)
+    p.add_argument('--pad',          type=float, default=PAD)
+    p.add_argument('--smooth',       type=float, default=SMOOTH)
+    p.add_argument('--crop-size',    type=int,   default=CROP_SIZE)
+    p.add_argument('--threshold',    type=float, default=THRESHOLD)
+    return p.parse_args()
+
+
 def main():
     from ultralytics import YOLO as YOLOModel
-    yolo_model        = YOLOModel(YOLO_MODEL)
-    recognizer        = ActionRecognizer(CHECKPOINT, ACTION_CSV, device=DEVICE, threshold=THRESHOLD)
-    species_embeddings = build_species_embeddings(DEVICE or 'cuda')
+    a = parse_args()
+    device = get_device()
+    print(f"[pipeline] device = {device}")
 
-    video_files = [f for f in os.listdir(VIDEO_FOLDER) if f.endswith('.mp4')]
-    print(f"Found {len(video_files)} videos in {VIDEO_FOLDER}\n")
+    yolo_model         = YOLOModel(a.yolo_model)
+    recognizer         = ActionRecognizer(a.checkpoint, a.action_csv, device=str(device), threshold=a.threshold)
+    clip_model, preprocess = load_clip(device)
+    species_embeddings = build_species_embeddings(clip_model, device)
+
+    video_files = [f for f in os.listdir(a.video_folder) if f.endswith('.mp4')]
+    print(f"Found {len(video_files)} videos in {a.video_folder}\n")
 
     for v_file in video_files:
-        video_path = os.path.join(VIDEO_FOLDER, v_file)
+        video_path = os.path.join(a.video_folder, v_file)
         video_name = os.path.splitext(v_file)[0]
-        video_dir  = os.path.join(OUT_ROOT, video_name)
+        video_dir  = os.path.join(a.out_root, video_name)
         os.makedirs(video_dir, exist_ok=True)
 
         print(f"── {video_name}")
 
         # Stage 1: YOLO
         if not os.path.exists(yolo_path(video_dir)):
-            run_yolo(video_path, video_dir, yolo_model)
+            run_yolo(video_path, video_dir, yolo_model, device)
         print(f"Ran until yolo!")
         # Stage 2: CLIP features
         if not os.path.exists(global_clip_path(video_dir)):
             try:
-                extract_global_clip(video_path, video_dir)
+                extract_global_clip(video_path, video_dir, clip_model, preprocess, device)
             except NotImplementedError:
                 print("  [clip] global stub — skipping")
         else:
@@ -408,7 +530,8 @@ def main():
         
         if not actor_clip_paths(video_dir):
             try:
-                extract_actor_clips(video_path, video_dir)
+                extract_actor_clips(video_path, video_dir, clip_model, preprocess, device,
+                                    pad=a.pad, smooth=a.smooth, crop_size=a.crop_size)
             except NotImplementedError:
                 print("  [clip] actor stub — skipping")
         else:

@@ -1,0 +1,141 @@
+Label,Category,Action
+0,Movement,Abseiling
+1,Aggressive,Attacking
+2,Sensing,Attending
+3,Communication,Barking
+4,Transport,Being carried
+5,Transport,Being carried in mouth
+6,Transport,Being dragged
+7,Prey,Being eaten
+8,Feeding,Biting
+9,Shelter,Building nest
+10,Communication,Calling
+11,Defensive,Camouflaging
+12,Transport,Carrying
+13,Transport,Carrying in mouth
+14,Aggressive,Chasing
+15,Communication,Chirping
+16,Movement,Climbing
+17,Aggressive,Coiling
+18,Aggressive,Competing for dominance
+19,Sexual,Dancing
+20,Sexual,Dancing on water
+21,Death,Dead
+22,Maintenance,Defecating
+23,Defensive,Defensive rearing
+24,Movement,Detaching as a parasite
+25,Movement,Digging
+26,Defensive,Displaying defensive pose
+27,Aggressive,Disturbing another animal
+28,Movement,Diving
+29,Defensive,Doing a back kick
+30,Movement,Doing a backward tilt
+31,Maintenance,Doing a chin dip
+32,Maintenance,Doing a face dip
+33,Movement,Doing a neck raise
+34,Movement,Doing a side tilt
+35,Sexual,Doing push up
+36,Movement,Doing somersault
+37,Movement,Drifting
+38,Feeding,Drinking
+39,Death,Dying
+40,Feeding,Eating
+41,Movement,Entering its nest
+42,Defensive,Escaping
+43,Life cycle,Exiting cocoon
+44,Movement,Exiting nest
+45,Sensing,Exploring
+46,Movement,Falling
+47,Aggressive,Fighting
+48,Movement,Flapping
+49,Movement,Flapping tail
+50,General,Flapping its ears
+51,Defensive,Fleeing
+52,Movement,Flying
+53,General,Gasping for air
+54,Prey,Getting bullied
+55,Life cycle,Giving birth
+56,Communication,Giving off light
+57,Movement,Gliding
+58,Maintenance,Grooming
+59,Movement,Hanging
+60,Life cycle,Hatching
+61,Sensing,Having a flehmen response
+62,Aggressive,Hissing
+63,Affection,Holding hands
+64,Movement,Hopping
+65,Affection,Hugging
+66,Movement,Immobilized
+67,Movement,Jumping
+68,General,Keeping still
+69,Movement,Landing
+70,Movement,Lying down
+71,Life cycle,Laying eggs
+72,Movement,Leaning
+73,Maintenance,Licking
+74,Movement,Lying on its side
+75,General,Lying on top
+76,Movement,Manipulating object
+77,Life cycle,Molting
+78,Movement,Moving
+79,General,Panting
+80,Feeding,Pecking
+81,Sexual,Performing sexual display
+82,Maintenance,Performing allo-grooming
+83,Maintenance,Performing allo-preening
+84,Sexual,Performing copulatory mounting
+85,Sexual,Performing sexual exploration
+86,Sexual,Performing sexual pursuit
+87,Social,Playing
+88,Prey,Playing dead
+89,Aggressive,Pounding
+90,Maintenance,Preening
+91,Aggressive,Preying
+92,Sexual,Puffing its throat
+93,Movement,Pulling
+94,Aggressive,Rattling
+95,Resting,Resting
+96,Defensive,Retaliating
+97,Defensive,Retreating
+98,Movement,Rolling
+99,Maintenance,Rubbing its head
+100,Movement,Running
+101,Movement,Running on water
+102,Sensing,Sensing
+103,Maintenance,Shaking
+104,Maintenance,Shaking head
+105,Feeding,Sharing food
+106,Affection,Showing affection
+107,Movement,Sinking
+108,Movement,Sitting
+109,Resting,Sleeping
+110,Resting,Sleeping in its nest
+111,General,Spitting
+112,Aggressive,Spitting venom
+113,Movement,Spreading
+114,Movement,Spreading wings
+115,Movement,Squatting
+116,Movement,Standing
+117,Defensive,Standing in alert
+118,General,Startled
+119,General,Stinging
+120,Defensive,Struggling
+121,Movement,Surfacing
+122,Movement,Swaying
+123,Movement,Swimming
+124,Social,Swimming in circles
+125,Movement,Swinging
+126,General,Tail swishing
+127,Prey,Trapped
+128,Movement,Turning around
+129,Life cycle,Undergoing chrysalis
+130,Movement,Unmounting
+131,Movement,Unrolling
+132,Maintenance,Urinating
+133,Movement,Walking
+134,Movement,Walking on water
+135,Maintenance,Washing
+136,Communication,Waving
+137,Aggressive,Wrapping itself around prey
+138,Aggressive,Wrapping prey
+139,Resting,Yawning

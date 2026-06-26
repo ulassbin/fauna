@@ -3,6 +3,16 @@ import pandas as pd
 from sklearn.metrics import average_precision_score
 
 
+def get_device():
+    """Best available torch device: CUDA > MPS (Apple Silicon) > CPU."""
+    import torch
+    if torch.cuda.is_available():
+        return torch.device('cuda')
+    if torch.backends.mps.is_available():
+        return torch.device('mps')
+    return torch.device('cpu')
+
+
 def load_action_info(csv_path):
     """Returns dict: label_int -> {'action': str, 'category': str}"""
     df = pd.read_csv(csv_path)
