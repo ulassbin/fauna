@@ -28,7 +28,7 @@ from utils import get_device
 # ── Config ─────────────────────────────────────────────────────────────────────
 VIDEO_FOLDER    = 'data/vid_final'
 OUT_ROOT        = 'outputs/pipeline'
-CHECKPOINT      = 'weights/best_jun27_ar.pt'
+CHECKPOINT      = 'weights/best_seed52_ar.pt'
 ACTION_CSV      = 'actions_ak.csv'
 YOLO_MODEL      = 'weights/best.pt'
 DEVICE          = None   # None = auto (CUDA > MPS > CPU)
