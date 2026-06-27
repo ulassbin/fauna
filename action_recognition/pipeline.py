@@ -187,7 +187,7 @@ def run_yolo(video_path: str, video_dir: str, yolo_model, device) -> str:
         keypoints  [10, T, 23, 3]— x, y, confidence per keypoint
     """
     results = yolo_model.track(
-        video_path, conf=0.1, stream=True, imgsz=1280, persist=True,
+        video_path, conf=0.1, stream=True, imgsz=640, persist=True,
         device=(0 if device.type == 'cuda' else device.type),
     )
 
