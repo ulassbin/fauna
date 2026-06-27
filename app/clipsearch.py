@@ -318,6 +318,10 @@ class ClipSearcher:
             "best": best,
             "matches": matches,
             "threshold": float(thr),
+            "curve": {
+                "times": [round(float(t), 2) for t in times],
+                "scores": [round(float(s), 4) for s in sims],
+            },
         }
 
     def matching_times(self, video_id, text):

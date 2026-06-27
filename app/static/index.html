@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fauna — behavioral sensing</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -232,6 +233,16 @@
           </div>
 
         </div>
+      </div>
+
+      <!-- SIMILARITY chart (CLIP query score across the timeline) -->
+      <div id="simPanel" class="mt-6 hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <h3 class="text-sm font-semibold text-slate-900">Query similarity over time</h3>
+          <span id="simHint" class="font-mono text-[11px] text-slate-500"></span>
+        </div>
+        <div class="relative h-44"><canvas id="simChart"></canvas></div>
+        <p class="mt-2 text-[11px] text-slate-500">CLIP similarity of your query at each moment · dashed line = match threshold · click to jump.</p>
       </div>
     </section>
 
@@ -503,6 +514,7 @@
     svKind.classList.add('hidden');
     alertsPanel.classList.remove('hidden'); // streams have alerts
     clearSearchResult(document.getElementById('searchResult'));
+    document.getElementById('simPanel').classList.add('hidden');
     document.getElementById('searchInput').value = '';
     document.getElementById('alertInput').value = '';
 
@@ -618,7 +630,48 @@
           </div>
         </div>`));
     }
+    renderSimChart(res, seek);
     box.classList.remove('hidden');
+  }
+
+  // ---------- SIMILARITY CHART ----------
+  let simChart = null;
+  function renderSimChart(res, seek) {
+    const panel = document.getElementById('simPanel');
+    const sv = document.getElementById('streamView');
+    if (!res || !res.curve || !res.curve.scores || !res.curve.scores.length || (sv && sv.classList.contains('hidden'))) {
+      panel.classList.add('hidden');
+      return;
+    }
+    const times = res.curve.times, scores = res.curve.scores, thr = res.threshold || 0;
+    panel.classList.remove('hidden');
+    document.getElementById('simHint').textContent =
+      'peak ' + fmtScore(Math.max.apply(null, scores)) + ' · thr ' + fmtScore(thr);
+    const data = {
+      labels: times.map(fmtTime),
+      datasets: [
+        { label: 'similarity', data: scores, borderColor: '#10b981',
+          backgroundColor: 'rgba(16,185,129,0.12)', borderWidth: 2, pointRadius: 0, fill: true, tension: 0.25 },
+        { label: 'threshold', data: scores.map(function () { return thr; }), borderColor: '#f59e0b',
+          borderWidth: 1, borderDash: [5, 4], pointRadius: 0 },
+      ],
+    };
+    const opts = {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { intersect: false, mode: 'index' },
+      scales: {
+        y: { min: 0, suggestedMax: Math.max(0.4, Math.max.apply(null, scores) + 0.05),
+             ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        x: { ticks: { color: '#94a3b8', maxTicksLimit: 8, font: { size: 10 } }, grid: { display: false } },
+      },
+      plugins: { legend: { display: false } },
+      onClick: function (evt) {
+        const pts = simChart.getElementsAtEventForMode(evt, 'index', { intersect: false }, true);
+        if (pts.length) seek(times[pts[0].index]);
+      },
+    };
+    if (simChart) { simChart.data = data; simChart.options = opts; simChart.update(); }
+    else { simChart = new Chart(document.getElementById('simChart'), { type: 'line', data: data, options: opts }); }
   }
 
   function setBtnLoading(btn, loading, label) {
