@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -11,12 +11,12 @@
         extend: {
           colors: {
             ink: {
-              950: '#070a0f',
-              900: '#0b0f16',
-              850: '#0f141d',
-              800: '#141a24',
-              750: '#1a2130',
-              700: '#222b3b',
+              950: '#f6f7f9',
+              900: '#ffffff',
+              850: '#ffffff',
+              800: '#f1f5f9',
+              750: '#e2e8f0',
+              700: '#cbd5e1',
             },
             accent: {
               DEFAULT: '#34d399',
@@ -32,11 +32,11 @@
     };
   </script>
   <style>
-    html, body { background: #070a0f; }
+    html, body { background: #f6f7f9; }
     ::-webkit-scrollbar { width: 9px; height: 9px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #222b3b; border-radius: 6px; }
-    ::-webkit-scrollbar-thumb:hover { background: #2d3850; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
     @keyframes livePulse {
       0%, 100% { opacity: 1; transform: scale(1); }
@@ -75,47 +75,47 @@
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
-<body class="flex min-h-screen flex-col font-sans text-slate-200 antialiased selection:bg-accent/30">
+<body class="flex min-h-screen flex-col font-sans text-slate-900 antialiased selection:bg-accent/30">
 
   <!-- Ambient backdrop -->
   <div class="pointer-events-none fixed inset-0 -z-10">
     <div class="absolute inset-0 bg-ink-950"></div>
-    <div class="absolute -top-40 -left-40 h-[42rem] w-[42rem] rounded-full bg-emerald-500/5 blur-3xl"></div>
-    <div class="absolute -bottom-52 -right-32 h-[40rem] w-[40rem] rounded-full bg-cyan-500/5 blur-3xl"></div>
+    <div class="absolute -top-40 -left-40 h-[42rem] w-[42rem] rounded-full bg-emerald-400/10 blur-3xl"></div>
+    <div class="absolute -bottom-52 -right-32 h-[40rem] w-[40rem] rounded-full bg-cyan-400/10 blur-3xl"></div>
   </div>
 
   <!-- ===================== HEADER ===================== -->
-  <header class="sticky top-0 z-40 border-b border-white/5 bg-ink-950/80 backdrop-blur-xl">
+  <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur-xl">
     <div class="mx-auto flex max-w-7xl items-center justify-between px-5 py-3.5">
       <button id="logoBtn" class="group flex items-center gap-3 text-left">
-        <span class="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400/90 to-teal-600/90 shadow-lg shadow-emerald-500/20 ring-1 ring-white/10">
-          <svg viewBox="0 0 24 24" class="h-5 w-5 text-ink-950" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <span class="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 shadow-lg shadow-emerald-500/30 ring-1 ring-black/5">
+          <svg viewBox="0 0 24 24" class="h-5 w-5 text-white" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 12h3l2-7 4 14 3-9 2 2h4" />
           </svg>
         </span>
         <span class="leading-none">
-          <span class="block text-[1.05rem] font-semibold tracking-tight text-white">Fauna</span>
-          <span class="block text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-400/70">behavioral sensing</span>
+          <span class="block text-[1.05rem] font-semibold tracking-tight text-slate-900">Fauna</span>
+          <span class="block text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-600">behavioral sensing</span>
         </span>
       </button>
 
       <div class="relative">
-        <button id="bellBtn" class="relative grid h-10 w-10 place-items-center rounded-xl border border-white/5 bg-ink-850 text-slate-300 transition hover:border-white/10 hover:bg-ink-800 hover:text-white">
+        <button id="bellBtn" class="relative grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900">
           <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
-          <span id="bellBadge" class="absolute -right-1 -top-1 hidden min-w-[18px] rounded-full bg-rose-500 px-1 text-center text-[10px] font-bold leading-[18px] text-white ring-2 ring-ink-950"></span>
+          <span id="bellBadge" class="absolute -right-1 -top-1 hidden min-w-[18px] rounded-full bg-rose-500 px-1 text-center text-[10px] font-bold leading-[18px] text-white ring-2 ring-white"></span>
         </button>
 
         <!-- Notifications dropdown -->
-        <div id="notifPanel" class="absolute right-0 mt-2 hidden w-[22rem] origin-top-right overflow-hidden rounded-2xl border border-white/10 bg-ink-850/95 shadow-2xl shadow-black/60 backdrop-blur-xl">
-          <div class="flex items-center justify-between border-b border-white/5 px-4 py-3">
+        <div id="notifPanel" class="absolute right-0 mt-2 hidden w-[22rem] origin-top-right overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-300/50 backdrop-blur-xl">
+          <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
             <div class="flex items-center gap-2">
-              <span class="text-sm font-semibold text-white">Notifications</span>
-              <span id="notifCount" class="rounded-full bg-white/5 px-2 py-0.5 text-[11px] font-medium text-slate-400"></span>
+              <span class="text-sm font-semibold text-slate-900">Notifications</span>
+              <span id="notifCount" class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500"></span>
             </div>
-            <button id="markSeenBtn" class="text-[11px] font-medium text-emerald-400/80 transition hover:text-emerald-300">Mark all read</button>
+            <button id="markSeenBtn" class="text-[11px] font-medium text-emerald-600 transition hover:text-emerald-700">Mark all read</button>
           </div>
           <div id="notifList" class="max-h-[26rem] overflow-y-auto">
             <div class="px-4 py-10 text-center text-sm text-slate-500">No notifications yet.</div>
@@ -132,10 +132,10 @@
     <section id="homeView" class="fade-in">
       <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 class="text-2xl font-semibold tracking-tight text-white">Cameras</h1>
-          <p class="mt-1 text-sm text-slate-400">Live behavioral monitoring across all sensors.</p>
+          <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Cameras</h1>
+          <p class="mt-1 text-sm text-slate-500">Live behavioral monitoring across all sensors.</p>
         </div>
-        <div class="flex items-center gap-2 rounded-full border border-white/5 bg-ink-850 px-3.5 py-1.5 text-xs text-slate-400">
+        <div class="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs text-slate-600 shadow-sm">
           <span class="live-dot inline-block h-2 w-2 rounded-full bg-emerald-400"></span>
           <span id="homeStatus">Connecting…</span>
         </div>
@@ -143,9 +143,9 @@
 
       <div id="cameraGrid" class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <!-- cards injected here -->
-        <div class="col-span-full grid place-items-center rounded-2xl border border-dashed border-white/10 py-16 text-slate-500">
+        <div class="col-span-full grid place-items-center rounded-2xl border border-dashed border-slate-300 py-16 text-slate-500">
           <div class="flex items-center gap-3 text-sm">
-            <span class="spin inline-block h-4 w-4 rounded-full border-2 border-white/20 border-t-emerald-400"></span>
+            <span class="spin inline-block h-4 w-4 rounded-full border-2 border-slate-300 border-t-emerald-500"></span>
             Loading cameras…
           </div>
         </div>
@@ -154,7 +154,7 @@
 
     <!-- ---------- STREAM / UPLOAD-PLAYER VIEW ---------- -->
     <section id="streamView" class="hidden fade-in">
-      <button class="backBtn mb-5 inline-flex items-center gap-2 rounded-lg border border-white/5 bg-ink-850 px-3 py-1.5 text-sm text-slate-300 transition hover:border-white/10 hover:bg-ink-800 hover:text-white">
+      <button class="backBtn mb-5 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900">
         <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         All cameras
       </button>
@@ -164,12 +164,12 @@
         <div class="lg:col-span-2">
           <div class="mb-3 flex items-center justify-between">
             <div>
-              <h2 id="svName" class="text-xl font-semibold tracking-tight text-white">—</h2>
+              <h2 id="svName" class="text-xl font-semibold tracking-tight text-slate-900">—</h2>
               <p id="svMeta" class="mt-0.5 text-xs text-slate-500"></p>
             </div>
             <span id="svKindBadge" class="hidden items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide"></span>
           </div>
-          <div id="playerWrap" class="relative overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl shadow-black/50">
+          <div id="playerWrap" class="relative overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-lg shadow-slate-300/60">
             <div class="pointer-events-none absolute inset-0 z-10 scanlines mix-blend-overlay opacity-40"></div>
             <div class="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-1.5 rounded-md bg-black/50 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-white backdrop-blur">
               <span class="live-dot inline-block h-2 w-2 rounded-full bg-rose-500"></span> LIVE
@@ -178,7 +178,7 @@
           </div>
           <div class="mt-2.5 flex items-center justify-between text-xs text-slate-500">
             <span id="svTime" class="font-mono">0:00</span>
-            <span class="flex items-center gap-1.5"><span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"></span> CLIP behavioral index active</span>
+            <span class="flex items-center gap-1.5"><span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"></span> CLIP behavioral index active</span>
           </div>
         </div>
 
@@ -186,34 +186,34 @@
         <div class="space-y-5">
 
           <!-- SEARCH panel -->
-          <div class="rounded-2xl border border-white/10 bg-ink-850/70 p-4">
+          <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="mb-3 flex items-center gap-2">
-              <svg viewBox="0 0 24 24" class="h-4 w-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-              <h3 class="text-sm font-semibold text-white">Search footage</h3>
+              <svg viewBox="0 0 24 24" class="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <h3 class="text-sm font-semibold text-slate-900">Search footage</h3>
             </div>
-            <p class="mb-3 text-xs leading-relaxed text-slate-400">Describe a moment in plain language and jump to it.</p>
+            <p class="mb-3 text-xs leading-relaxed text-slate-500">Describe a moment in plain language and jump to it.</p>
             <form id="searchForm" class="flex gap-2">
-              <input id="searchInput" type="text" autocomplete="off" placeholder="e.g. a dog eating" class="min-w-0 flex-1 rounded-lg border border-white/10 bg-ink-900 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-400/20" />
-              <button id="searchBtn" type="submit" class="shrink-0 rounded-lg bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-ink-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50">Search</button>
+              <input id="searchInput" type="text" autocomplete="off" placeholder="e.g. a dog eating" class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-400/20" />
+              <button id="searchBtn" type="submit" class="shrink-0 rounded-lg bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50">Search</button>
             </form>
             <div id="searchResult" class="mt-3 hidden"></div>
           </div>
 
           <!-- ALERTS panel -->
-          <div id="alertsPanel" class="rounded-2xl border border-white/10 bg-ink-850/70 p-4">
+          <div id="alertsPanel" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="mb-3 flex items-center gap-2">
-              <svg viewBox="0 0 24 24" class="h-4 w-4 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.5a2 2 0 0 1 3.4 0l8 13.5a2 2 0 0 1-1.7 3H4a2 2 0 0 1-1.7-3z"/><path d="M12 9v4M12 17h.01"/></svg>
-              <h3 class="text-sm font-semibold text-white">Standing alerts</h3>
+              <svg viewBox="0 0 24 24" class="h-4 w-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.5a2 2 0 0 1 3.4 0l8 13.5a2 2 0 0 1-1.7 3H4a2 2 0 0 1-1.7-3z"/><path d="M12 9v4M12 17h.01"/></svg>
+              <h3 class="text-sm font-semibold text-slate-900">Standing alerts</h3>
             </div>
-            <p class="mb-3 text-xs leading-relaxed text-slate-400">Get notified when this behavior appears.</p>
+            <p class="mb-3 text-xs leading-relaxed text-slate-500">Get notified when this behavior appears.</p>
             <form id="alertForm" class="flex gap-2">
-              <input id="alertInput" type="text" autocomplete="off" placeholder="e.g. an animal fighting" class="min-w-0 flex-1 rounded-lg border border-white/10 bg-ink-900 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none transition focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20" />
-              <button id="alertBtn" type="submit" class="shrink-0 rounded-lg bg-amber-500/90 px-3.5 py-2 text-sm font-semibold text-ink-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50">Add</button>
+              <input id="alertInput" type="text" autocomplete="off" placeholder="e.g. an animal fighting" class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-amber-500/60 focus:ring-2 focus:ring-amber-400/20" />
+              <button id="alertBtn" type="submit" class="shrink-0 rounded-lg bg-amber-500 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50">Add</button>
             </form>
             <div id="alertFormMsg" class="mt-2 hidden text-xs"></div>
             <ul id="alertList" class="mt-3 space-y-2"></ul>
             <p class="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-500">
-              <svg viewBox="0 0 24 24" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+              <svg viewBox="0 0 24 24" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
               Alerts run on the server and notify you even when you are not watching.
             </p>
           </div>
@@ -224,27 +224,27 @@
 
     <!-- ---------- UPLOAD VIEW ---------- -->
     <section id="uploadView" class="hidden fade-in">
-      <button class="backBtn mb-5 inline-flex items-center gap-2 rounded-lg border border-white/5 bg-ink-850 px-3 py-1.5 text-sm text-slate-300 transition hover:border-white/10 hover:bg-ink-800 hover:text-white">
+      <button class="backBtn mb-5 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900">
         <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
         All cameras
       </button>
 
       <div class="mx-auto max-w-xl">
-        <h1 class="text-2xl font-semibold tracking-tight text-white">Upload a video</h1>
-        <p class="mt-1 mb-6 text-sm text-slate-400">Index any clip with CLIP and search it instantly. Uploads are search-only.</p>
+        <h1 class="text-2xl font-semibold tracking-tight text-slate-900">Upload a video</h1>
+        <p class="mt-1 mb-6 text-sm text-slate-500">Index any clip with CLIP and search it instantly. Uploads are search-only.</p>
 
-        <div class="rounded-2xl border border-white/10 bg-ink-850/70 p-6">
-          <label id="dropZone" for="fileInput" class="group flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-white/10 bg-ink-900/50 px-6 py-12 text-center transition hover:border-emerald-400/40 hover:bg-ink-900">
-            <span class="mb-3 grid h-12 w-12 place-items-center rounded-full bg-emerald-500/10 text-emerald-400 transition group-hover:bg-emerald-500/20">
+        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <label id="dropZone" for="fileInput" class="group flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center transition hover:border-emerald-400/50 hover:bg-emerald-50/50">
+            <span class="mb-3 grid h-12 w-12 place-items-center rounded-full bg-emerald-500/10 text-emerald-600 transition group-hover:bg-emerald-500/20">
               <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
             </span>
-            <span id="fileLabel" class="text-sm font-medium text-white">Click to choose a video</span>
+            <span id="fileLabel" class="text-sm font-medium text-slate-900">Click to choose a video</span>
             <span class="mt-1 text-xs text-slate-500">MP4 recommended</span>
             <input id="fileInput" type="file" accept="video/*" class="hidden" />
           </label>
 
-          <button id="uploadBtn" disabled class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40">
-            <span id="uploadBtnSpin" class="spin hidden h-4 w-4 rounded-full border-2 border-ink-950/30 border-t-ink-950"></span>
+          <button id="uploadBtn" disabled class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-40">
+            <span id="uploadBtnSpin" class="spin hidden h-4 w-4 rounded-full border-2 border-white/40 border-t-white"></span>
             <span id="uploadBtnText">Upload &amp; index</span>
           </button>
           <div id="uploadMsg" class="mt-3 hidden text-xs"></div>
@@ -253,21 +253,21 @@
         <!-- After-upload player + search -->
         <div id="uploadResult" class="mt-6 hidden">
           <div class="mb-3">
-            <h2 id="upName" class="text-lg font-semibold text-white">—</h2>
+            <h2 id="upName" class="text-lg font-semibold text-slate-900">—</h2>
             <p id="upMeta" class="mt-0.5 text-xs text-slate-500"></p>
           </div>
-          <div class="relative overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl shadow-black/50">
+          <div class="relative overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-lg shadow-slate-300/60">
             <video id="upPlayer" class="block aspect-video w-full bg-black object-cover" autoplay muted loop playsinline></video>
           </div>
 
-          <div class="mt-5 rounded-2xl border border-white/10 bg-ink-850/70 p-4">
+          <div class="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="mb-3 flex items-center gap-2">
-              <svg viewBox="0 0 24 24" class="h-4 w-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-              <h3 class="text-sm font-semibold text-white">Search footage</h3>
+              <svg viewBox="0 0 24 24" class="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <h3 class="text-sm font-semibold text-slate-900">Search footage</h3>
             </div>
             <form id="upSearchForm" class="flex gap-2">
-              <input id="upSearchInput" type="text" autocomplete="off" placeholder="e.g. a person walking" class="min-w-0 flex-1 rounded-lg border border-white/10 bg-ink-900 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-400/20" />
-              <button id="upSearchBtn" type="submit" class="shrink-0 rounded-lg bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-ink-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50">Search</button>
+              <input id="upSearchInput" type="text" autocomplete="off" placeholder="e.g. a person walking" class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-400/20" />
+              <button id="upSearchBtn" type="submit" class="shrink-0 rounded-lg bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50">Search</button>
             </form>
             <div id="upSearchResult" class="mt-3 hidden"></div>
           </div>
@@ -354,7 +354,7 @@
       renderCameras(streams);
     } catch (e) {
       cameraGrid.innerHTML = '';
-      cameraGrid.appendChild(el(`<div class="col-span-full rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6 text-center text-sm text-rose-300">Could not load cameras: ${esc(e.message)}</div>`));
+      cameraGrid.appendChild(el(`<div class="col-span-full rounded-2xl border border-rose-300 bg-rose-50 p-6 text-center text-sm text-rose-600">Could not load cameras: ${esc(e.message)}</div>`));
       // still offer the upload card
       cameraGrid.appendChild(uploadCard());
       homeStatus.textContent = 'Offline';
@@ -375,14 +375,14 @@
     cameraGrid.innerHTML = '';
     streams.forEach((s, i) => {
       const card = el(`
-        <button class="group relative overflow-hidden rounded-2xl border border-white/10 bg-ink-850/70 text-left transition hover:-translate-y-0.5 hover:border-emerald-400/30 hover:shadow-xl hover:shadow-emerald-500/5" style="animation-delay:${i * 50}ms">
+        <button class="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-400/40 hover:shadow-lg hover:shadow-slate-300/60" style="animation-delay:${i * 50}ms">
           <div class="relative aspect-video overflow-hidden bg-black">
             <div class="pointer-events-none absolute inset-0 z-10 scanlines mix-blend-overlay opacity-30"></div>
             <video class="block h-full w-full object-cover" src="/api/video/${encodeURIComponent(s.id)}" autoplay muted loop playsinline></video>
             <div class="absolute left-2.5 top-2.5 z-20 flex items-center gap-1.5 rounded-md bg-black/55 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur">
               <span class="live-dot inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"></span> LIVE
             </div>
-            ${alertCounts[s.id] ? `<div class="absolute right-2.5 top-2.5 z-20 flex items-center gap-1 rounded-md bg-amber-500/90 px-2 py-1 text-[10px] font-bold text-ink-950 backdrop-blur">
+            ${alertCounts[s.id] ? `<div class="absolute right-2.5 top-2.5 z-20 flex items-center gap-1 rounded-md bg-amber-500/90 px-2 py-1 text-[10px] font-bold text-amber-950 backdrop-blur">
               <svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.5a2 2 0 0 1 3.4 0l8 13.5a2 2 0 0 1-1.7 3H4a2 2 0 0 1-1.7-3z"/></svg>
               ${alertCounts[s.id]} alert${alertCounts[s.id] === 1 ? '' : 's'}
             </div>` : ''}
@@ -390,10 +390,10 @@
           </div>
           <div class="flex items-center justify-between px-4 py-3">
             <div class="min-w-0">
-              <div class="truncate text-sm font-semibold text-white">${esc(s.name)}</div>
+              <div class="truncate text-sm font-semibold text-slate-900">${esc(s.name)}</div>
               <div class="mt-0.5 font-mono text-[11px] text-slate-500">${esc(s.id)} · ${fmtTime(s.duration)}</div>
             </div>
-            <span class="grid h-7 w-7 place-items-center rounded-lg bg-white/5 text-slate-400 transition group-hover:bg-emerald-500/20 group-hover:text-emerald-300">
+            <span class="grid h-7 w-7 place-items-center rounded-lg bg-slate-100 text-slate-500 transition group-hover:bg-emerald-500/20 group-hover:text-emerald-600">
               <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </span>
           </div>
@@ -406,11 +406,11 @@
 
   function uploadCard() {
     const card = el(`
-      <button class="group grid place-items-center rounded-2xl border-2 border-dashed border-white/10 bg-ink-850/40 p-6 text-center transition hover:-translate-y-0.5 hover:border-emerald-400/40 hover:bg-ink-850/70">
-        <span class="mb-3 grid h-12 w-12 place-items-center rounded-full bg-emerald-500/10 text-emerald-400 transition group-hover:bg-emerald-500/20">
+      <button class="group grid place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center transition hover:-translate-y-0.5 hover:border-emerald-400/50 hover:bg-emerald-50/50">
+        <span class="mb-3 grid h-12 w-12 place-items-center rounded-full bg-emerald-500/10 text-emerald-600 transition group-hover:bg-emerald-500/20">
           <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
         </span>
-        <span class="text-sm font-semibold text-white">Upload a video</span>
+        <span class="text-sm font-semibold text-slate-900">Upload a video</span>
         <span class="mt-1 text-xs text-slate-500">Index &amp; search your own clip</span>
       </button>`);
     card.addEventListener('click', openUpload);
@@ -453,11 +453,11 @@
       if (src.kind === 'upload') {
         // uploads opened from a notif shouldn't show alerts panel
         alertsPanel.classList.add('hidden');
-        svKind.className = 'inline-flex items-center gap-1.5 rounded-full border border-sky-400/30 bg-sky-400/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-sky-300';
+        svKind.className = 'inline-flex items-center gap-1.5 rounded-full border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-sky-700';
         svKind.textContent = 'Upload';
         svKind.classList.remove('hidden');
       } else {
-        svKind.className = 'inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-300';
+        svKind.className = 'inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700';
         svKind.textContent = 'Stream';
         svKind.classList.remove('hidden');
         loadAlerts(id);
@@ -506,7 +506,7 @@
       renderSearchResult(resultBox, res, seek);
     } catch (e) {
       resultBox.innerHTML = '';
-      resultBox.appendChild(el(`<div class="rounded-lg border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-xs text-rose-300">${esc(e.message)}</div>`));
+      resultBox.appendChild(el(`<div class="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs text-rose-600">${esc(e.message)}</div>`));
       resultBox.classList.remove('hidden');
     } finally {
       setBtnLoading(btn, false);
@@ -519,7 +519,7 @@
     if (found) {
       const t = res.best.time, sc = res.best.score;
       const banner = el(`
-        <div class="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2.5 text-sm text-emerald-200">
+        <div class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">
           <div class="flex items-center gap-2 font-medium">
             <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
             ${res.message ? esc(res.message) : ('Found at ' + fmtTime(t) + ' (score ' + fmtScore(sc) + ')')}
@@ -534,8 +534,8 @@
         const wrap = el(`<div class="mt-2.5"><div class="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-500">Other moments</div></div>`);
         const chips = el('<div class="flex flex-wrap gap-1.5"></div>');
         others.slice(0, 12).forEach(m => {
-          const chip = el(`<button class="group inline-flex items-center gap-1 rounded-md border border-white/10 bg-ink-900 px-2 py-1 font-mono text-[11px] text-slate-300 transition hover:border-emerald-400/40 hover:text-emerald-200">
-            <svg viewBox="0 0 24 24" class="h-3 w-3 text-slate-500 group-hover:text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          const chip = el(`<button class="group inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-[11px] text-slate-600 transition hover:border-emerald-400/40 hover:bg-emerald-50 hover:text-emerald-700">
+            <svg viewBox="0 0 24 24" class="h-3 w-3 text-slate-400 group-hover:text-emerald-600" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             ${fmtTime(m.time)} · ${fmtScore(m.score)}
           </button>`);
           chip.addEventListener('click', () => seek(m.time));
@@ -546,7 +546,7 @@
       }
     } else {
       box.appendChild(el(`
-        <div class="rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2.5 text-sm text-amber-200">
+        <div class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-700">
           <div class="flex items-center gap-2 font-medium">
             <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
             ${res && res.message ? esc(res.message) : 'No matching moment found.'}
@@ -581,26 +581,26 @@
       renderAlerts(list || []);
     } catch (e) {
       alertList.innerHTML = '';
-      alertList.appendChild(el(`<li class="text-xs text-rose-300">${esc(e.message)}</li>`));
+      alertList.appendChild(el(`<li class="text-xs text-rose-600">${esc(e.message)}</li>`));
     }
   }
 
   function renderAlerts(list) {
     alertList.innerHTML = '';
     if (!list.length) {
-      alertList.appendChild(el(`<li class="rounded-lg border border-dashed border-white/10 px-3 py-2.5 text-center text-xs text-slate-500">No alerts yet for this camera.</li>`));
+      alertList.appendChild(el(`<li class="rounded-lg border border-dashed border-slate-300 px-3 py-2.5 text-center text-xs text-slate-500">No alerts yet for this camera.</li>`));
       return;
     }
     list.forEach(a => {
       const li = el(`
-        <li class="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-ink-900/60 px-3 py-2">
+        <li class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
           <div class="flex min-w-0 items-center gap-2">
-            <span class="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-amber-500/15 text-amber-400">
+            <span class="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-amber-500/15 text-amber-600">
               <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.5a2 2 0 0 1 3.4 0l8 13.5a2 2 0 0 1-1.7 3H4a2 2 0 0 1-1.7-3z"/></svg>
             </span>
-            <span class="truncate text-sm text-slate-200">${esc(a.query)}</span>
+            <span class="truncate text-sm text-slate-700">${esc(a.query)}</span>
           </div>
-          <button class="delAlert grid h-6 w-6 shrink-0 place-items-center rounded-md text-slate-500 transition hover:bg-rose-500/15 hover:text-rose-300" title="Remove alert">
+          <button class="delAlert grid h-6 w-6 shrink-0 place-items-center rounded-md text-slate-400 transition hover:bg-rose-500/15 hover:text-rose-600" title="Remove alert">
             <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </li>`);
@@ -636,7 +636,7 @@
 
   function flashAlertMsg(msg, isErr) {
     alertFormMsg.textContent = msg;
-    alertFormMsg.className = 'mt-2 text-xs ' + (isErr ? 'text-rose-300' : 'text-emerald-300');
+    alertFormMsg.className = 'mt-2 text-xs ' + (isErr ? 'text-rose-600' : 'text-emerald-600');
     alertFormMsg.classList.remove('hidden');
     if (!isErr) setTimeout(() => alertFormMsg.classList.add('hidden'), 3000);
   }
@@ -698,12 +698,12 @@
       upPlayer.play().catch(() => {});
       uploadResult.classList.remove('hidden');
       uploadMsg.textContent = 'Indexed and ready to search.';
-      uploadMsg.className = 'mt-3 text-xs text-emerald-300';
+      uploadMsg.className = 'mt-3 text-xs text-emerald-600';
       uploadMsg.classList.remove('hidden');
       uploadResult.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (e) {
       uploadMsg.textContent = 'Upload failed: ' + e.message;
-      uploadMsg.className = 'mt-3 text-xs text-rose-300';
+      uploadMsg.className = 'mt-3 text-xs text-rose-600';
       uploadMsg.classList.remove('hidden');
     } finally {
       uploadBtnSpin.classList.add('hidden');
@@ -795,16 +795,16 @@
     notifList.innerHTML = '';
     notifications.forEach(n => {
       const item = el(`
-        <button class="flex w-full items-start gap-3 border-b border-white/5 px-4 py-3 text-left transition hover:bg-white/5 ${n.seen ? '' : 'bg-emerald-500/[0.04]'}">
-          <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg ${n.seen ? 'bg-white/5 text-slate-500' : 'bg-amber-500/15 text-amber-400'}">
+        <button class="flex w-full items-start gap-3 border-b border-slate-200 px-4 py-3 text-left transition hover:bg-slate-50 ${n.seen ? '' : 'bg-emerald-500/[0.06]'}">
+          <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg ${n.seen ? 'bg-slate-100 text-slate-500' : 'bg-amber-500/15 text-amber-600'}">
             <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.5a2 2 0 0 1 3.4 0l8 13.5a2 2 0 0 1-1.7 3H4a2 2 0 0 1-1.7-3z"/><path d="M12 9v4M12 17h.01"/></svg>
           </span>
           <span class="min-w-0 flex-1">
             <span class="flex items-center justify-between gap-2">
-              <span class="truncate text-sm font-semibold text-white">${esc(n.stream_name || n.stream_id || 'Camera')}</span>
-              ${!n.seen ? '<span class="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400"></span>' : ''}
+              <span class="truncate text-sm font-semibold text-slate-900">${esc(n.stream_name || n.stream_id || 'Camera')}</span>
+              ${!n.seen ? '<span class="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"></span>' : ''}
             </span>
-            <span class="mt-0.5 block truncate text-sm text-slate-300">${esc(n.query)}</span>
+            <span class="mt-0.5 block truncate text-sm text-slate-600">${esc(n.query)}</span>
             <span class="mt-1 flex items-center gap-2 font-mono text-[11px] text-slate-500">
               <span class="inline-flex items-center gap-1"><svg viewBox="0 0 24 24" class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>${fmtTime(n.time)}</span>
               ${n.score != null ? '<span>· score ' + fmtScore(n.score) + '</span>' : ''}
@@ -831,17 +831,17 @@
 
   function pushToast(n) {
     const t = el(`
-      <div class="toast-in flex items-start gap-3 overflow-hidden rounded-xl border border-amber-400/30 bg-ink-850/95 p-3 shadow-2xl shadow-black/60 backdrop-blur-xl">
-        <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-500/15 text-amber-400">
+      <div class="toast-in flex items-start gap-3 overflow-hidden rounded-xl border border-amber-300 bg-white/95 p-3 shadow-xl shadow-slate-300/60 backdrop-blur-xl">
+        <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-500/15 text-amber-600">
           <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.5a2 2 0 0 1 3.4 0l8 13.5a2 2 0 0 1-1.7 3H4a2 2 0 0 1-1.7-3z"/><path d="M12 9v4M12 17h.01"/></svg>
         </span>
         <div class="min-w-0 flex-1">
-          <div class="text-[11px] font-semibold uppercase tracking-wide text-amber-400/80">Alert triggered</div>
-          <div class="mt-0.5 truncate text-sm font-medium text-white">${esc(n.stream_name || n.stream_id || 'Camera')}</div>
-          <div class="truncate text-sm text-slate-300">${esc(n.query)}</div>
+          <div class="text-[11px] font-semibold uppercase tracking-wide text-amber-600">Alert triggered</div>
+          <div class="mt-0.5 truncate text-sm font-medium text-slate-900">${esc(n.stream_name || n.stream_id || 'Camera')}</div>
+          <div class="truncate text-sm text-slate-600">${esc(n.query)}</div>
           <div class="mt-1 font-mono text-[11px] text-slate-500">at ${fmtTime(n.time)}</div>
         </div>
-        <button class="dismiss shrink-0 text-slate-500 transition hover:text-white">
+        <button class="dismiss shrink-0 text-slate-400 transition hover:text-slate-900">
           <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
       </div>`);
