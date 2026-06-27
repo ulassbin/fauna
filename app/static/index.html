@@ -175,7 +175,10 @@
             <div class="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-1.5 rounded-md bg-black/50 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-white backdrop-blur">
               <span class="live-dot inline-block h-2 w-2 rounded-full bg-rose-500"></span> LIVE
             </div>
-            <video id="player" class="block aspect-video w-full bg-black object-cover" autoplay muted loop playsinline></video>
+            <video id="player" class="block aspect-video w-full bg-black object-contain" autoplay muted loop playsinline></video>
+            <div id="actorBox" class="pointer-events-none absolute z-30 hidden rounded-[3px] border-2 border-emerald-400">
+              <span id="actorBoxLabel" class="absolute -top-[18px] left-0 whitespace-nowrap rounded bg-emerald-500 px-1.5 py-0.5 text-[10px] font-semibold text-white"></span>
+            </div>
           </div>
           <div class="mt-2.5 flex items-center justify-between text-xs text-slate-500">
             <span id="svTime" class="font-mono">0:00</span>
@@ -188,14 +191,11 @@
 
           <!-- BEHAVIOR panel (live action timeline from decision.npz) -->
           <div id="behaviorPanel" class="hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div class="mb-3 flex items-center justify-between gap-2">
-              <div class="flex items-center gap-2">
-                <svg viewBox="0 0 24 24" class="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
-                <h3 class="text-sm font-semibold text-slate-900">Live behavior</h3>
-              </div>
-              <span id="bhSpecies" class="hidden rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700"></span>
+            <div class="mb-3 flex items-center gap-2">
+              <svg viewBox="0 0 24 24" class="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+              <h3 class="text-sm font-semibold text-slate-900">Live behavior</h3>
             </div>
-            <p class="mb-3 text-xs leading-relaxed text-slate-500">Top actions at the current moment, synced to playback.</p>
+            <div id="bhTabs" class="mb-3 flex flex-wrap gap-1.5"></div>
             <div id="bhBars" class="space-y-2"></div>
           </div>
 
@@ -455,55 +455,104 @@
 
   player.addEventListener('timeupdate', () => { svTime.textContent = fmtTime(player.currentTime); });
 
-  // ── Live behavior panel (per-frame top actions from decision.npz) ──
+  // ── Live behavior panel (per-source action bars + actor box, from decision.npz) ──
   const behaviorPanel = document.getElementById('behaviorPanel');
-  const bhSpecies = document.getElementById('bhSpecies');
   const bhBars = document.getElementById('bhBars');
-  let decisionData = null;
+  const bhTabs = document.getElementById('bhTabs');
+  const actorBox = document.getElementById('actorBox');
+  const actorBoxLabel = document.getElementById('actorBoxLabel');
+  let behaviorSources = null;   // [{key,label,species,frames,boxes?}]
+  let behaviorSel = 0;          // 0 = Whole scene
+  let behaviorNFrames = 0;
 
   async function loadBehavior(id) {
-    decisionData = null;
+    behaviorSources = null; behaviorSel = 0; behaviorNFrames = 0;
     behaviorPanel.classList.add('hidden');
-    bhBars.innerHTML = '';
-    bhSpecies.classList.add('hidden');
+    bhBars.innerHTML = ''; bhTabs.innerHTML = '';
+    drawActorBox(null);
     try {
       const d = await fetch('/api/actions/' + encodeURIComponent(id)).then(r => r.json());
-      if (!d || !d.available || !d.n_frames) return;
-      decisionData = d;
-      const label = [d.broad, d.species].filter(Boolean).join(' · ');
-      if (label) { bhSpecies.textContent = label; bhSpecies.classList.remove('hidden'); }
+      if (!d || !d.available || !Array.isArray(d.sources) || !d.sources.length) return;
+      behaviorSources = d.sources;
+      behaviorNFrames = d.n_frames;
+      behaviorSel = 0;
       bhBars.innerHTML = Array.from({ length: 6 }).map(() => `
         <div class="bh-row flex items-center gap-2">
           <span class="bh-name w-24 shrink-0 truncate text-xs text-slate-600">—</span>
           <span class="relative h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><span class="bh-fill absolute inset-y-0 left-0 rounded-full bg-slate-300" style="width:0%"></span></span>
           <span class="bh-pct w-9 shrink-0 text-right font-mono text-[11px] text-slate-500">0%</span>
         </div>`).join('');
+      buildBehaviorTabs();
       behaviorPanel.classList.remove('hidden');
       renderBehaviorAt(0);
     } catch (_) { /* no decision for this source */ }
   }
 
+  function buildBehaviorTabs() {
+    if (!behaviorSources) return;
+    bhTabs.innerHTML = behaviorSources.map((s, idx) => {
+      const active = idx === behaviorSel
+        ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50';
+      return `<button data-idx="${idx}" class="bh-tab rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${active}">${esc(s.label)}</button>`;
+    }).join('');
+    bhTabs.querySelectorAll('.bh-tab').forEach(b =>
+      b.addEventListener('click', () => selectBehaviorSource(parseInt(b.dataset.idx, 10))));
+  }
+
+  function selectBehaviorSource(idx) {
+    if (!behaviorSources || !behaviorSources[idx]) return;
+    behaviorSel = idx;
+    actorBoxLabel.textContent = behaviorSources[idx].label || '';
+    buildBehaviorTabs();
+    const f = player.duration ? Math.floor((player.currentTime / player.duration) * behaviorNFrames) : 0;
+    renderBehaviorAt(f);
+  }
+
   function renderBehaviorAt(frameIdx) {
-    if (!decisionData) return;
-    const i = Math.max(0, Math.min(decisionData.n_frames - 1, frameIdx | 0));
-    const fr = decisionData.frames[i];
-    if (!fr) return;
-    const rows = bhBars.querySelectorAll('.bh-row');
-    fr.forEach((a, j) => {
-      const row = rows[j];
-      if (!row) return;
-      const pct = Math.round((a.confidence || 0) * 100);
-      row.querySelector('.bh-name').textContent = a.action;
-      const fill = row.querySelector('.bh-fill');
-      fill.style.width = pct + '%';
-      fill.className = 'bh-fill absolute inset-y-0 left-0 rounded-full ' + (pct >= 50 ? 'bg-emerald-500' : 'bg-slate-300');
-      row.querySelector('.bh-pct').textContent = pct + '%';
-    });
+    if (!behaviorSources) return;
+    const src = behaviorSources[behaviorSel];
+    if (!src) return;
+    const i = Math.max(0, Math.min(behaviorNFrames - 1, frameIdx | 0));
+    const fr = src.frames[i];
+    if (fr) {
+      const rows = bhBars.querySelectorAll('.bh-row');
+      fr.forEach((a, j) => {
+        const row = rows[j];
+        if (!row) return;
+        const pct = Math.round((a.confidence || 0) * 100);
+        row.querySelector('.bh-name').textContent = a.action;
+        const fill = row.querySelector('.bh-fill');
+        fill.style.width = pct + '%';
+        fill.className = 'bh-fill absolute inset-y-0 left-0 rounded-full ' + (pct >= 50 ? 'bg-emerald-500' : 'bg-slate-300');
+        row.querySelector('.bh-pct').textContent = pct + '%';
+      });
+    }
+    drawActorBox(src.boxes ? (src.boxes[i] || null) : null);
+  }
+
+  // Map a [x1,y1,x2,y2] box in video pixels to the displayed (object-cover) frame.
+  function drawActorBox(box) {
+    if (!box) { actorBox.classList.add('hidden'); return; }
+    const vw = player.videoWidth, vh = player.videoHeight;
+    const dw = player.clientWidth, dh = player.clientHeight;
+    if (!vw || !vh || !dw || !dh) { actorBox.classList.add('hidden'); return; }
+    const scale = Math.min(dw / vw, dh / vh);            // object-contain (full frame, boxes align)
+    const ox = (dw - vw * scale) / 2, oy = (dh - vh * scale) / 2;
+    actorBox.style.left = Math.round(box[0] * scale + ox) + 'px';
+    actorBox.style.top = Math.round(box[1] * scale + oy) + 'px';
+    actorBox.style.width = Math.round((box[2] - box[0]) * scale) + 'px';
+    actorBox.style.height = Math.round((box[3] - box[1]) * scale) + 'px';
+    actorBox.classList.remove('hidden');
   }
 
   player.addEventListener('timeupdate', () => {
-    if (!decisionData || !player.duration) return;
-    renderBehaviorAt(Math.floor((player.currentTime / player.duration) * decisionData.n_frames));
+    if (!behaviorSources || !player.duration) return;
+    renderBehaviorAt(Math.floor((player.currentTime / player.duration) * behaviorNFrames));
+  });
+  window.addEventListener('resize', () => {
+    if (behaviorSources && player.duration)
+      renderBehaviorAt(Math.floor((player.currentTime / player.duration) * behaviorNFrames));
   });
 
   async function openStream(id, fallbackName) {

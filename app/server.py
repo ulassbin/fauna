@@ -127,32 +127,66 @@ def _decision_path_for(s):
     return os.path.join(PIPELINE_OUT, stem, "decision.npz")
 
 
-def _parse_decision(path):
-    """Parse a pipeline decision.npz into per-frame top-6 actions + species."""
-    d = np.load(path, allow_pickle=True)
-    ga = d["global_actions"]                 # [T, 140] per-frame action scores
-    T = int(ga.shape[0])
-    names = _load_action_names()
-    order = np.argsort(ga, axis=1)[:, ::-1][:, :6]   # top-6 indices per frame
-    frames = []
-    for t in range(T):
-        frames.append([
+def _top6(scores2d, names):
+    """Per-frame list of the 6 highest-scoring actions [{action,confidence}]."""
+    order = np.argsort(scores2d, axis=1)[:, ::-1][:, :6]
+    out = []
+    for t in range(scores2d.shape[0]):
+        out.append([
             {"action": names.get(int(i), str(int(i))),
-             "confidence": round(float(ga[t, int(i)]), 3)}
+             "confidence": round(float(scores2d[t, int(i)]), 3)}
             for i in order[t]
         ])
-    # dominant actor's species (the one present in the most frames)
-    species, broad, best = None, None, -1.0
+    return out
+
+
+def _parse_decision(path):
+    """Parse a decision.npz into selectable sources: 'Whole scene' (global) plus
+    one per tracked actor. Each source has per-frame top-6 actions; actors also
+    carry per-frame bounding boxes ([x1,y1,x2,y2] in video pixels, or null)."""
+    d = np.load(path, allow_pickle=True)
+    names = _load_action_names()
+    ga = d["global_actions"]                       # [T, 140]
+    T = int(ga.shape[0])
     exist = d["existence"] if "existence" in d.files else None
-    for i in range(10):
-        if f"actor_{i}_species" in d.files:
-            pc = float(exist[i, :, 0].sum()) if exist is not None else 0.0
-            if pc > best:
-                best = pc
-                species = str(d[f"actor_{i}_species"])
-                broad = str(d[f"actor_{i}_broad"]) if f"actor_{i}_broad" in d.files else None
-    return {"available": True, "n_frames": T, "species": species,
-            "broad": broad, "frames": frames}
+    bboxes = d["bboxes"] if "bboxes" in d.files else None   # [10, T, 4, 2] corners
+
+    sources = [{"key": "global", "label": "Whole scene",
+                "species": None, "broad": None, "frames": _top6(ga, names)}]
+
+    slots = sorted({int(k.split("_")[1]) for k in d.files
+                    if k.startswith("actor_") and k.endswith("_actions")})
+    raw = {i: (str(d[f"actor_{i}_species"]) if f"actor_{i}_species" in d.files else "animal")
+           for i in slots}
+    counts = {}
+    for i in slots:
+        counts[raw[i]] = counts.get(raw[i], 0) + 1
+    seen = {}
+    for i in slots:
+        sp = raw[i]
+        if counts[sp] > 1:                          # number duplicates: "Heron 1", "Heron 2"
+            seen[sp] = seen.get(sp, 0) + 1
+            label = f"{sp.capitalize()} {seen[sp]}"
+        else:
+            label = sp.capitalize()
+        boxes = None
+        if bboxes is not None and exist is not None and i < bboxes.shape[0]:
+            boxes = []
+            for t in range(min(T, bboxes.shape[1])):
+                if exist[i, t, 0] > 0.5:
+                    x1, y1 = bboxes[i, t, 0]
+                    x2, y2 = bboxes[i, t, 2]
+                    boxes.append([int(round(float(x1))), int(round(float(y1))),
+                                  int(round(float(x2))), int(round(float(y2)))])
+                else:
+                    boxes.append(None)
+        sources.append({
+            "key": f"actor_{i}", "label": label, "species": sp,
+            "broad": str(d[f"actor_{i}_broad"]) if f"actor_{i}_broad" in d.files else None,
+            "frames": _top6(d[f"actor_{i}_actions"], names),
+            "boxes": boxes,
+        })
+    return {"available": True, "n_frames": T, "sources": sources}
 
 
 def _get_decision(sid):
