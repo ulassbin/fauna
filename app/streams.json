@@ -1,0 +1,5 @@
+[
+  { "id": "cam1", "name": "Barn Camera", "path": "custom/cat.mp4" },
+  { "id": "cam2", "name": "Yard Camera", "path": "custom/dog_eating.mp4" },
+  { "id": "cam3", "name": "Field Camera", "path": "custom/wolf2.mp4" }
+]

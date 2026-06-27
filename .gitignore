@@ -27,3 +27,8 @@ data/
 .DS_Store
 .idea/
 .vscode/
+
+# ── Demo app runtime artifacts (regenerated) ──
+app/cache/
+app/uploads/
+.gstack/
