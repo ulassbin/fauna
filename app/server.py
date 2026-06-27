@@ -9,12 +9,15 @@ Run: `uv run python app/server.py`  →  http://127.0.0.1:8000
 """
 
 import asyncio
+import csv
 import json
 import mimetypes
 import os
 import re
 import time
 import uuid
+
+import numpy as np
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
@@ -28,6 +31,8 @@ STATIC_DIR = os.path.join(THIS_DIR, "static")
 UPLOADS_DIR = os.path.join(THIS_DIR, "uploads")
 STREAMS_JSON = os.path.join(THIS_DIR, "streams.json")
 INDEX_HTML = os.path.join(STATIC_DIR, "index.html")
+PIPELINE_OUT = os.path.join(REPO_ROOT, "outputs", "pipeline")  # where decision.npz live
+ACTIONS_CSV = os.path.join(REPO_ROOT, "actions_ak.csv")
 
 # ── Alert-engine tuning ─────────────────────────────────────────────────
 ALERT_TICK_SEC = 1.0       # how often the engine evaluates alerts
@@ -41,6 +46,8 @@ streams = []                          # [{id,name,path,fps,num_frames,duration}]
 alerts = []                           # [{id,stream_id,query,created,times}]
 notifications = []                    # newest-first, capped
 uploads = {}                          # id -> {name,path,fps,duration,num_frames}
+_action_names = None                  # label -> action name (lazy from actions_ak.csv)
+_decision_cache = {}                  # stream_id -> parsed decision dict or {available:False}
 
 _engine_start = None                  # monotonic-ish wall start for virtual time
 _last_fired = {}                      # (alert_id, round(time)) -> last fire unix
@@ -98,6 +105,70 @@ def _load_streams():
             path = os.path.join(REPO_ROOT, path)
         out.append({"id": entry["id"], "name": entry["name"], "path": path})
     return out
+
+
+# ── decision.npz (action timeline + species) ─────────────────────────────
+def _load_action_names():
+    global _action_names
+    if _action_names is None:
+        names = {}
+        try:
+            with open(ACTIONS_CSV) as f:
+                for row in csv.DictReader(f):
+                    names[int(row["Label"])] = row["Action"]
+        except Exception as exc:
+            print(f"[fauna] could not load actions csv: {exc}")
+        _action_names = names
+    return _action_names
+
+
+def _decision_path_for(s):
+    stem = os.path.splitext(os.path.basename(s["path"]))[0]
+    return os.path.join(PIPELINE_OUT, stem, "decision.npz")
+
+
+def _parse_decision(path):
+    """Parse a pipeline decision.npz into per-frame top-6 actions + species."""
+    d = np.load(path, allow_pickle=True)
+    ga = d["global_actions"]                 # [T, 140] per-frame action scores
+    T = int(ga.shape[0])
+    names = _load_action_names()
+    order = np.argsort(ga, axis=1)[:, ::-1][:, :6]   # top-6 indices per frame
+    frames = []
+    for t in range(T):
+        frames.append([
+            {"action": names.get(int(i), str(int(i))),
+             "confidence": round(float(ga[t, int(i)]), 3)}
+            for i in order[t]
+        ])
+    # dominant actor's species (the one present in the most frames)
+    species, broad, best = None, None, -1.0
+    exist = d["existence"] if "existence" in d.files else None
+    for i in range(10):
+        if f"actor_{i}_species" in d.files:
+            pc = float(exist[i, :, 0].sum()) if exist is not None else 0.0
+            if pc > best:
+                best = pc
+                species = str(d[f"actor_{i}_species"])
+                broad = str(d[f"actor_{i}_broad"]) if f"actor_{i}_broad" in d.files else None
+    return {"available": True, "n_frames": T, "species": species,
+            "broad": broad, "frames": frames}
+
+
+def _get_decision(sid):
+    if sid in _decision_cache:
+        return _decision_cache[sid]
+    res = {"available": False}
+    s = _stream_by_id(sid)
+    if s is not None:
+        path = _decision_path_for(s)
+        if os.path.exists(path):
+            try:
+                res = _parse_decision(path)
+            except Exception as exc:
+                print(f"[fauna] decision parse error for {sid}: {exc}")
+    _decision_cache[sid] = res
+    return res
 
 
 # ── Startup ─────────────────────────────────────────────────────────────
@@ -301,6 +372,13 @@ async def api_source(sid: str):
         "duration": rec.get("duration", 0.0),
         "kind": kind,
     }
+
+
+@app.get("/api/actions/{sid}")
+async def api_actions(sid: str):
+    """Per-frame top-6 actions + species for a stream (from its decision.npz).
+    Returns {available:false} for uploads or streams without a decision file."""
+    return await asyncio.to_thread(_get_decision, sid)
 
 
 @app.get("/api/video/{sid}")

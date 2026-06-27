@@ -185,6 +185,19 @@
         <!-- Tools column -->
         <div class="space-y-5">
 
+          <!-- BEHAVIOR panel (live action timeline from decision.npz) -->
+          <div id="behaviorPanel" class="hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div class="mb-3 flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <svg viewBox="0 0 24 24" class="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+                <h3 class="text-sm font-semibold text-slate-900">Live behavior</h3>
+              </div>
+              <span id="bhSpecies" class="hidden rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700"></span>
+            </div>
+            <p class="mb-3 text-xs leading-relaxed text-slate-500">Top actions at the current moment, synced to playback.</p>
+            <div id="bhBars" class="space-y-2"></div>
+          </div>
+
           <!-- SEARCH panel -->
           <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="mb-3 flex items-center gap-2">
@@ -431,6 +444,57 @@
 
   player.addEventListener('timeupdate', () => { svTime.textContent = fmtTime(player.currentTime); });
 
+  // ── Live behavior panel (per-frame top actions from decision.npz) ──
+  const behaviorPanel = document.getElementById('behaviorPanel');
+  const bhSpecies = document.getElementById('bhSpecies');
+  const bhBars = document.getElementById('bhBars');
+  let decisionData = null;
+
+  async function loadBehavior(id) {
+    decisionData = null;
+    behaviorPanel.classList.add('hidden');
+    bhBars.innerHTML = '';
+    bhSpecies.classList.add('hidden');
+    try {
+      const d = await fetch('/api/actions/' + encodeURIComponent(id)).then(r => r.json());
+      if (!d || !d.available || !d.n_frames) return;
+      decisionData = d;
+      const label = [d.broad, d.species].filter(Boolean).join(' · ');
+      if (label) { bhSpecies.textContent = label; bhSpecies.classList.remove('hidden'); }
+      bhBars.innerHTML = Array.from({ length: 6 }).map(() => `
+        <div class="bh-row flex items-center gap-2">
+          <span class="bh-name w-24 shrink-0 truncate text-xs text-slate-600">—</span>
+          <span class="relative h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><span class="bh-fill absolute inset-y-0 left-0 rounded-full bg-slate-300" style="width:0%"></span></span>
+          <span class="bh-pct w-9 shrink-0 text-right font-mono text-[11px] text-slate-500">0%</span>
+        </div>`).join('');
+      behaviorPanel.classList.remove('hidden');
+      renderBehaviorAt(0);
+    } catch (_) { /* no decision for this source */ }
+  }
+
+  function renderBehaviorAt(frameIdx) {
+    if (!decisionData) return;
+    const i = Math.max(0, Math.min(decisionData.n_frames - 1, frameIdx | 0));
+    const fr = decisionData.frames[i];
+    if (!fr) return;
+    const rows = bhBars.querySelectorAll('.bh-row');
+    fr.forEach((a, j) => {
+      const row = rows[j];
+      if (!row) return;
+      const pct = Math.round((a.confidence || 0) * 100);
+      row.querySelector('.bh-name').textContent = a.action;
+      const fill = row.querySelector('.bh-fill');
+      fill.style.width = pct + '%';
+      fill.className = 'bh-fill absolute inset-y-0 left-0 rounded-full ' + (pct >= 50 ? 'bg-emerald-500' : 'bg-slate-300');
+      row.querySelector('.bh-pct').textContent = pct + '%';
+    });
+  }
+
+  player.addEventListener('timeupdate', () => {
+    if (!decisionData || !player.duration) return;
+    renderBehaviorAt(Math.floor((player.currentTime / player.duration) * decisionData.n_frames));
+  });
+
   async function openStream(id, fallbackName) {
     currentStreamId = id;
     showView('stream');
@@ -445,6 +509,7 @@
     player.src = '/api/video/' + encodeURIComponent(id);
     player.load();
     player.play().catch(() => {});
+    loadBehavior(id);
 
     try {
       const src = await API.source(id);
