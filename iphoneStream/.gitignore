@@ -1,0 +1,7 @@
+# Self-signed TLS material — never commit the private key
+cert.pem
+key.pem
+
+.DS_Store
+__pycache__/
+*.pyc

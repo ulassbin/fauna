@@ -14,6 +14,8 @@ import json
 import mimetypes
 import os
 import re
+import shutil
+import tempfile
 import time
 import uuid
 
@@ -33,6 +35,8 @@ STREAMS_JSON = os.path.join(THIS_DIR, "streams.json")
 INDEX_HTML = os.path.join(STATIC_DIR, "index.html")
 PIPELINE_OUT = os.path.join(REPO_ROOT, "outputs", "pipeline")  # where decision.npz live
 ACTIONS_CSV = os.path.join(REPO_ROOT, "actions_ak.csv")
+PIPELINE_PY = os.path.join(REPO_ROOT, "action_recognition", "pipeline.py")
+VENV_PY = os.path.join(REPO_ROOT, ".venv", "bin", "python")
 
 # ── Alert-engine tuning ─────────────────────────────────────────────────
 ALERT_TICK_SEC = 1.0       # how often the engine evaluates alerts
@@ -103,8 +107,74 @@ def _load_streams():
         path = entry["path"]
         if not os.path.isabs(path):
             path = os.path.join(REPO_ROOT, path)
-        out.append({"id": entry["id"], "name": entry["name"], "path": path})
+        out.append({"id": entry["id"], "name": entry["name"], "path": path, "status": "ready"})
     return out
+
+
+def _save_streams():
+    """Persist current streams to streams.json (paths relative to repo root)."""
+    data = []
+    for s in streams:
+        try:
+            rel = os.path.relpath(s["path"], REPO_ROOT)
+        except ValueError:
+            rel = s["path"]
+        data.append({"id": s["id"], "name": s["name"], "path": rel})
+    tmp = STREAMS_JSON + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2)
+    os.replace(tmp, STREAMS_JSON)
+
+
+async def _run_pipeline(video_path):
+    """Run the offline pipeline on a single video -> outputs/pipeline/<stem>/decision.npz.
+    Returns True on success. Uses a temp folder with a symlink so the pipeline's
+    folder scan picks up exactly this one file."""
+    stem = os.path.splitext(os.path.basename(video_path))[0]
+    ext = os.path.splitext(video_path)[1] or ".mp4"
+    tmp = tempfile.mkdtemp(prefix="fauna_up_")
+    try:
+        os.symlink(os.path.abspath(video_path), os.path.join(tmp, stem + ext))
+        python = VENV_PY if os.path.exists(VENV_PY) else "python"
+        proc = await asyncio.create_subprocess_exec(
+            python, PIPELINE_PY, "--video-folder", tmp,
+            cwd=REPO_ROOT,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        out, _ = await proc.communicate()
+        if proc.returncode != 0:
+            print(f"[fauna] pipeline failed for {stem} (rc={proc.returncode}):")
+            print((out or b"").decode(errors="ignore")[-2000:])
+        else:
+            print(f"[fauna] pipeline done for {stem}")
+        return proc.returncode == 0
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+async def _process_upload(uid, dest):
+    """Background: index the upload for search, then run the action pipeline,
+    updating the stream's status as it goes."""
+    s = _stream_by_id(uid)
+    if s is None:
+        return
+    try:
+        meta = await asyncio.to_thread(searcher.index_video, uid, dest)
+        s["fps"] = meta["fps"]
+        s["num_frames"] = meta["num_frames"]
+        s["duration"] = meta["duration"]
+    except Exception as exc:
+        print(f"[fauna] upload index failed for {uid}: {exc}")
+        s["status"] = "failed"
+        return
+    ok = await _run_pipeline(dest)
+    if ok and os.path.exists(_decision_path_for(s)):
+        _decision_cache.pop(uid, None)
+        s["status"] = "ready"
+    else:
+        s["status"] = "failed"
+    print(f"[fauna] upload {uid} status={s['status']}")
 
 
 # ── decision.npz (action timeline + species) ─────────────────────────────
@@ -389,6 +459,7 @@ async def api_streams():
             "fps": s.get("fps", 0.0),
             "num_frames": s.get("num_frames", 0),
             "duration": s.get("duration", 0.0),
+            "status": s.get("status", "ready"),
         }
         for s in streams
     ]
@@ -405,6 +476,7 @@ async def api_source(sid: str):
         "fps": rec.get("fps", 0.0),
         "duration": rec.get("duration", 0.0),
         "kind": kind,
+        "status": rec.get("status", "ready"),
     }
 
 
@@ -542,6 +614,10 @@ async def api_notifications_seen(payload: dict = None):
 
 @app.post("/api/upload")
 async def api_upload(file: UploadFile = File(...)):
+    """Save an uploaded video, register it as a stream immediately (status
+    'processing'), and kick off CLIP indexing + the full action pipeline in the
+    background. The client polls /api/source/<id> until status == 'ready', then
+    opens the stream view."""
     os.makedirs(UPLOADS_DIR, exist_ok=True)
     uid = "up_" + uuid.uuid4().hex[:10]
 
@@ -549,36 +625,32 @@ async def api_upload(file: UploadFile = File(...)):
     base, ext = os.path.splitext(orig)
     if not ext:
         ext = ".mp4"
-    safe_name = orig
+    name = base or uid
     dest = os.path.join(UPLOADS_DIR, uid + ext)
 
     contents = await file.read()
     with open(dest, "wb") as f:
         f.write(contents)
-
-    try:
-        meta = await asyncio.to_thread(searcher.index_video, uid, dest)
-    except Exception as exc:
-        # Clean up the unusable file.
+    if not contents:
         try:
             os.remove(dest)
         except OSError:
             pass
-        raise HTTPException(status_code=400, detail=f"could not index upload: {exc}")
+        raise HTTPException(status_code=400, detail="empty upload")
 
-    uploads[uid] = {
-        "name": safe_name,
-        "path": dest,
-        "fps": meta["fps"],
-        "duration": meta["duration"],
-        "num_frames": meta["num_frames"],
+    # Register as a real stream right away so it shows up in the camera list.
+    stream = {
+        "id": uid, "name": name, "path": dest, "status": "processing",
+        "fps": 0.0, "num_frames": 0, "duration": 0.0,
     }
-    return {
-        "id": uid,
-        "name": safe_name,
-        "fps": meta["fps"],
-        "duration": meta["duration"],
-    }
+    streams.append(stream)
+    try:
+        _save_streams()
+    except Exception as exc:
+        print(f"[fauna] could not persist streams.json: {exc}")
+
+    asyncio.create_task(_process_upload(uid, dest))
+    return {"id": uid, "name": name, "status": "processing"}
 
 
 if __name__ == "__main__":

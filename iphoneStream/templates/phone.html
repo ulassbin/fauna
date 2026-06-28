@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+
+<body>
+
+    <h2>iPhone Camera</h2>
+
+    <button id="start">
+        Start Recording
+    </button>
+
+    <button id="stop">
+        Stop Recording
+    </button>
+
+    <video id="preview" autoplay playsinline muted width="300">
+    </video>
+
+    <script>
+        let pc;
+        let stream;
+
+    document.getElementById("start").onclick = async () => {
+        try {
+            console.log("Starting camera...");
+
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: { ideal: "environment" },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                },
+                audio: false
+            });
+
+            console.log("Got stream", stream);
+
+            preview.srcObject = stream;
+
+            pc = new RTCPeerConnection();
+
+            stream.getTracks().forEach(track => {
+                pc.addTrack(track, stream);
+            });
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            const response = await fetch("/offer", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    sdp: pc.localDescription.sdp,
+                    type: pc.localDescription.type
+                })
+            });
+
+            const answer = await response.json();
+
+            await pc.setRemoteDescription(answer);
+
+            console.log("Connected!");
+        } catch (e) {
+            console.error(e);
+            alert(e);
+        }
+    };
+        document.getElementById("stop")
+            .onclick = () => {
+                if (stream) {
+                    stream.getTracks()
+                        .forEach(t => t.stop());
+                }
+
+                if (pc) {
+                    pc.close();
+                }
+            };
+    </script>
+
+</body>
+
+</html>

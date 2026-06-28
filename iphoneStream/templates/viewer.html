@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+
+<body>
+
+    <h2>Viewer</h2>
+
+    <video id="remoteVideo" autoplay playsinline controls width="800">
+    </video>
+
+    <script>
+        const pc = new RTCPeerConnection();
+
+        pc.ontrack = (event) => {
+            console.log("track arrived");
+            document.getElementById("remoteVideo")
+                .srcObject = event.streams[0];
+        };
+
+        async function connect() {
+            pc.addTransceiver(
+                "video",
+                { direction: "recvonly" }
+            );
+
+            const offer = await pc.createOffer();
+
+            await pc.setLocalDescription(offer);
+
+            const response = await fetch("/viewer-offer", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    sdp: pc.localDescription.sdp,
+                    type: pc.localDescription.type
+                })
+            });
+
+            const answer = await response.json();
+
+            await pc.setRemoteDescription(answer);
+        }
+
+        connect();
+    </script>
+
+</body>
+
+</html>

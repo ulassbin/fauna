@@ -25,6 +25,9 @@ dependencies = [
     "fastapi>=0.138.1",
     "uvicorn[standard]>=0.49.0",
     "python-multipart>=0.0.32",
+    "aiortc>=1.14.0",
+    "aiohttp>=3.14.1",
+    "av>=16.1.0",
 ]
 
 [tool.uv]

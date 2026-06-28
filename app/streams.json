@@ -1,7 +1,57 @@
 [
-  { "id": "cam1", "name": "Barn Camera", "path": "custom/cat.mp4" },
-  { "id": "cam2", "name": "Yard Camera", "path": "custom/dog_eating.mp4" },
-  { "id": "cam3", "name": "Field Camera", "path": "custom/wolf2.mp4" },
-  { "id": "cam4", "name": "Training Camera", "path": "custom/training-dog.mp4" },
-  { "id": "cam5", "name": "Kennel Camera", "path": "custom/puppies-movements.mp4" }
+	{
+		"id": "cam1",
+		"name": "Barn Camera",
+		"path": "custom/cat.mp4"
+	},
+	{
+		"id": "cam2",
+		"name": "Yard Camera",
+		"path": "custom/dog_eating.mp4"
+	},
+	{
+		"id": "cam3",
+		"name": "Field Camera",
+		"path": "custom/wolf2.mp4"
+	},
+	{
+		"id": "cam4",
+		"name": "Training Camera",
+		"path": "custom/training-dog.mp4"
+	},
+	{
+		"id": "cam5",
+		"name": "Pasture Camera",
+		"path": "custom/goat_grazing.mp4"
+	},
+	{
+		"id": "cam6",
+		"name": "Cattle Camera",
+		"path": "custom/cows_eating_walking.mp4"
+	},
+	{
+		"id": "cam7",
+		"name": "Pond Camera",
+		"path": "custom/ducks_swimming_bathing.mp4"
+	},
+	{
+		"id": "cam8",
+		"name": "Aviary Camera",
+		"path": "custom/eagle_sitting_calling.mp4"
+	},
+	{
+		"id": "cam9",
+		"name": "Pen Camera",
+		"path": "custom/babypigs_fighting_standing.mp4"
+	},
+	{
+		"id": "up_411920b6a1",
+		"name": "ZZILSKDQ",
+		"path": "app/uploads/up_411920b6a1.mp4"
+	},
+	{
+		"id": "up_2bdf306bfc",
+		"name": "ZZGYJFYS",
+		"path": "app/uploads/up_2bdf306bfc.mp4"
+	}
 ]

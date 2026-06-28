@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fauna — Live (phone)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background: #f6f7f9; }
+        .bar-track { background: #eef0f3; border-radius: 9999px; }
+        .bar-fill { transition: width .35s ease; border-radius: 9999px; }
+    </style>
+</head>
+
+<body class="min-h-screen text-slate-800">
+    <header class="border-b border-slate-200 bg-white">
+        <div class="max-w-6xl mx-auto px-5 py-3 flex items-center gap-3">
+            <div class="h-8 w-8 rounded-lg bg-emerald-500 flex items-center justify-center text-white font-bold">F</div>
+            <div>
+                <div class="font-semibold leading-tight">Fauna</div>
+                <div class="text-xs text-slate-400 leading-tight">Live behavioral sensing — phone camera</div>
+            </div>
+            <div class="ml-auto flex items-center gap-2 text-sm">
+                <span id="dot" class="h-2.5 w-2.5 rounded-full bg-slate-300"></span>
+                <span id="status" class="text-slate-500">connecting…</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-5 py-5">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <!-- video -->
+            <section class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                    <h2 class="font-semibold">Phone Camera</h2>
+                    <button id="reconnect" class="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200">Reconnect</button>
+                </div>
+                <div class="bg-black aspect-video">
+                    <video id="remote" class="w-full h-full object-contain" autoplay playsinline muted></video>
+                </div>
+                <p class="px-4 py-2 text-xs text-slate-400">Open <code>/phone</code> on the iPhone and tap Start first, then this page receives the stream.</p>
+            </section>
+
+            <!-- live behavior bars -->
+            <section class="bg-white rounded-2xl border border-slate-200">
+                <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                    <h2 class="font-semibold">Live behavior</h2>
+                    <span id="meta" class="text-xs text-slate-400"></span>
+                </div>
+                <div class="border-b border-slate-100 px-4 py-3">
+                    <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">YOLO detects</div>
+                    <div id="detections" class="flex flex-wrap gap-1.5"><span class="text-xs text-slate-400">—</span></div>
+                </div>
+                <div id="bars" class="space-y-3 p-4">
+                    <div class="text-sm text-slate-400">Waiting for the stream…</div>
+                </div>
+            </section>
+        </div>
+
+        <!-- bottom time-series chart -->
+        <section class="bg-white rounded-2xl border border-slate-200 mt-5">
+            <div class="px-4 py-3 border-b border-slate-100">
+                <h2 class="font-semibold">Action confidence over time</h2>
+            </div>
+            <div class="p-4">
+                <canvas id="chart" height="110"></canvas>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // ───────────────────────── WebRTC (recvonly) ─────────────────────────
+        let pc;
+        const remote = document.getElementById('remote');
+
+        async function connect() {
+            if (pc) { try { pc.close(); } catch (e) {} }
+            pc = new RTCPeerConnection();
+            pc.addTransceiver('video', { direction: 'recvonly' });
+            pc.ontrack = (e) => { remote.srcObject = e.streams[0]; };
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            const r = await fetch('/viewer-offer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sdp: pc.localDescription.sdp, type: pc.localDescription.type })
+            });
+            await pc.setRemoteDescription(await r.json());
+        }
+        document.getElementById('reconnect').onclick = connect;
+        connect();
+
+        // ───────────────────────── status helpers ─────────────────────────
+        const dot = document.getElementById('dot'), statusEl = document.getElementById('status');
+        function setStatus(text, color) { statusEl.textContent = text; dot.style.background = color; }
+
+        // ───────────────────────── results WebSocket ─────────────────────────
+        const CATEGORY = {};   // label -> category (for color grouping, unused for now)
+        const HISTORY = [];     // [{t, all_scores[140]}]
+        const MAX_PTS = 60;
+        const LINE_COLORS = ['#10b981', '#3b82f6', '#f59e0b'];
+
+        function renderDetections(dets) {
+            const box = document.getElementById('detections');
+            if (!dets || !dets.length) { box.innerHTML = '<span class="text-xs text-slate-400">no animal detected</span>'; return; }
+            box.innerHTML = dets.map(d =>
+                `<span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">${d.label}${d.count > 1 ? ' ×' + d.count : ''} <span class="text-emerald-500/80">${Math.round(d.conf * 100)}%</span></span>`
+            ).join('');
+        }
+
+        function renderBars(actions) {
+            const bars = document.getElementById('bars');
+            if (!actions || !actions.length) return;
+            bars.innerHTML = actions.map(a => {
+                const pct = Math.round(a.score * 100);
+                const green = a.score >= 0.5;
+                return `
+                  <div>
+                    <div class="flex justify-between text-sm mb-1">
+                      <span class="capitalize">${a.action}</span>
+                      <span class="text-slate-400">${pct}%</span>
+                    </div>
+                    <div class="bar-track h-2.5 w-full">
+                      <div class="bar-fill h-2.5 ${green ? 'bg-emerald-500' : 'bg-slate-300'}" style="width:${pct}%"></div>
+                    </div>
+                  </div>`;
+            }).join('');
+        }
+
+        // Chart.js line chart of the current top-3 actions over time
+        let chart;
+        function initChart() {
+            chart = new Chart(document.getElementById('chart'), {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true, maintainAspectRatio: true, animation: false,
+                    scales: { y: { min: 0, max: 1, ticks: { stepSize: 0.25 } },
+                              x: { ticks: { maxTicksLimit: 8 } } },
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } },
+                    elements: { point: { radius: 0 } }
+                }
+            });
+        }
+        initChart();
+
+        function renderChart(actions) {
+            const top3 = actions.slice(0, 3);
+            chart.data.labels = HISTORY.map((_, i) => `-${HISTORY.length - 1 - i}s`);
+            chart.data.datasets = top3.map((a, i) => ({
+                label: a.action,
+                data: HISTORY.map(h => h.all_scores[a.label]),
+                borderColor: LINE_COLORS[i % LINE_COLORS.length],
+                backgroundColor: LINE_COLORS[i % LINE_COLORS.length] + '22',
+                borderWidth: 2, fill: false, tension: 0.25
+            }));
+            chart.update('none');
+        }
+
+        function connectWS() {
+            const ws = new WebSocket(`wss://${location.host}/results`);
+            ws.onopen = () => setStatus('live', '#10b981');
+            ws.onclose = () => { setStatus('disconnected — retrying…', '#f59e0b'); setTimeout(connectWS, 1500); };
+            ws.onerror = () => setStatus('socket error', '#ef4444');
+            ws.onmessage = (ev) => {
+                const msg = JSON.parse(ev.data);
+                HISTORY.push({ t: msg.t, all_scores: msg.all_scores });
+                while (HISTORY.length > MAX_PTS) HISTORY.shift();
+                document.getElementById('meta').textContent = `${msg.fps} fps in · ${msg.n_frames}-frame context`;
+                renderBars(msg.actions);
+                renderDetections(msg.detections);
+                renderChart(msg.actions);
+            };
+        }
+        connectWS();
+    </script>
+</body>
+
+</html>

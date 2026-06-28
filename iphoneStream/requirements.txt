@@ -1,0 +1,9 @@
+# Live iPhone-stream action-recognition demo.
+# Run inside the repo's uv env (which already provides torch, openai-clip, opencv,
+# numpy, pillow, ultralytics). These are the WebRTC/server-specific additions:
+aiohttp>=3.9
+aiortc>=1.6
+av>=11.0
+
+# Imported from the parent repo (action_recognition/) at runtime:
+#   torch, openai-clip (clip), opencv-python, numpy, pillow
